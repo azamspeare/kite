@@ -1,4 +1,4 @@
-import { Fill, ease, progress, type SceneProps } from 'storyboard';
+import { Fill, ease, progress, type SceneProps, type SceneSounds } from 'storyboard';
 import { Headline, swapWords } from '../components/Headline';
 import { CARD_H, CARD_W, LOOKS, PromptCard, type LayerName } from '../components/PromptCard';
 import { BG, CARD, DISPLAY, INK } from '../components/tokens';
@@ -23,6 +23,25 @@ const CALLOUTS: Callout[] = [
   { label: 'Surface: soft', layer: 'surface', x: 120, y: CARD_H, side: 'left' },
   { label: 'Duration', layer: 'header', x: 581, y: 3, side: 'right' },
   { label: 'Actions', layer: 'send', x: 652, y: 290, side: 'right' },
+];
+
+/** Moments shared by the animation and the sound cues. */
+const EXPLODE_AT = 1.0;
+const CALLOUT_AT = (i: number) => 1.6 + i * 0.1;
+const COLLAPSE_AT = 4.0;
+const LAND_AT = 4.75;
+
+export const sounds: SceneSounds = [
+  { at: EXPLODE_AT + 0.2, sound: 'whoosh', align: 'peak', volume: 0.8 },
+  ...CALLOUTS.map((c, i) => ({
+    at: CALLOUT_AT(i),
+    sound: 'tick',
+    pitch: [0, 2, 4, -1, 1, 3][i],
+    pan: c.side === 'left' ? -0.35 : 0.35,
+    volume: 0.5 + (i % 3) * 0.06,
+  })),
+  { at: (COLLAPSE_AT + LAND_AT) / 2, sound: 'swish', align: 'peak', pitch: -3, volume: 0.5 },
+  { at: LAND_AT, sound: 'thud', volume: 0.8 },
 ];
 
 const LEFT_COLUMN = 520; // right edge of left labels
@@ -81,7 +100,8 @@ export default function Anatomy({ t }: SceneProps) {
   const swap = progress(t, 0.05, 0.9);
   const tilt = progress(t, 0.5, 1.5, ease.smooth) * (1 - progress(t, 4.35, 5.25, ease.smooth));
   const drift = progress(t, 1.2, 4.4, ease.inOutSine);
-  const explode = progress(t, 1.0, 1.95, ease.outExpo) * (1 - progress(t, 4.0, 4.75, ease.inOutCubic));
+  const explode =
+    progress(t, EXPLODE_AT, EXPLODE_AT + 0.95, ease.outExpo) * (1 - progress(t, COLLAPSE_AT, LAND_AT, ease.inOutCubic));
   const p = pose(tilt, drift, explode);
   const flat = tilt === 0 && explode === 0;
 
@@ -113,7 +133,7 @@ export default function Anatomy({ t }: SceneProps) {
       )}
       <svg width={1920} height={1080} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
         {CALLOUTS.map((c, i) => {
-          const start = 1.6 + i * 0.1;
+          const start = CALLOUT_AT(i);
           const draw = progress(t, start + 0.1, start + 0.65, ease.outCubic);
           const retract = progress(t, 3.85 + i * 0.03, 4.2 + i * 0.03, ease.inCubic);
           const dot = progress(t, start, start + 0.25, ease.outBack) * (1 - retract);
@@ -142,7 +162,7 @@ export default function Anatomy({ t }: SceneProps) {
         })}
       </svg>
       {CALLOUTS.map((c, i) => {
-        const start = 1.6 + i * 0.1;
+        const start = CALLOUT_AT(i);
         const shown = progress(t, start + 0.45, start + 0.8, ease.outCubic) * (1 - progress(t, 3.8 + i * 0.03, 4.05 + i * 0.03));
         if (shown <= 0) return null;
         const ly = LABEL_Y.get(c)!;

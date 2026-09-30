@@ -1,0 +1,214 @@
+{
+  "sounds": {
+    "key-1": {
+      "synth": {
+        "preset": "keystroke",
+        "params": {
+          "pitch": 0,
+          "length": 0.11,
+          "brightness": 0.6,
+          "weight": 0.5,
+          "tail": 0.08,
+          "motion": 0,
+          "seed": 1
+        }
+      },
+      "createdAt": 1790790624116
+    },
+    "key-2": {
+      "synth": {
+        "preset": "keystroke",
+        "params": {
+          "pitch": 0,
+          "length": 0.11,
+          "brightness": 0.6,
+          "weight": 0.5,
+          "tail": 0.08,
+          "motion": 0,
+          "seed": 2
+        }
+      },
+      "createdAt": 1790790624152
+    },
+    "key-3": {
+      "synth": {
+        "preset": "keystroke",
+        "params": {
+          "pitch": 0,
+          "length": 0.11,
+          "brightness": 0.6,
+          "weight": 0.5,
+          "tail": 0.08,
+          "motion": 0,
+          "seed": 3
+        }
+      },
+      "createdAt": 1790790624160
+    },
+    "key-4": {
+      "synth": {
+        "preset": "keystroke",
+        "params": {
+          "pitch": 0,
+          "length": 0.11,
+          "brightness": 0.6,
+          "weight": 0.5,
+          "tail": 0.08,
+          "motion": 0,
+          "seed": 4
+        }
+      },
+      "createdAt": 1790790624167
+    },
+    "click": {
+      "synth": {
+        "preset": "click",
+        "params": {
+          "pitch": 0,
+          "length": 0.03,
+          "brightness": 0.95,
+          "weight": 0.3,
+          "tail": 0.15,
+          "motion": 0,
+          "seed": 1
+        }
+      },
+      "createdAt": 1790790698775
+    },
+    "tick": {
+      "synth": {
+        "preset": "tick",
+        "params": {
+          "pitch": 5,
+          "length": 0.04,
+          "brightness": 0.5,
+          "weight": 0.5,
+          "tail": 0.1,
+          "motion": 0,
+          "seed": 1
+        }
+      },
+      "createdAt": 1790790625410
+    },
+    "pop": {
+      "synth": {
+        "preset": "pop",
+        "params": {
+          "pitch": 0,
+          "length": 0.07,
+          "brightness": 0.5,
+          "weight": 0.5,
+          "tail": 0.12,
+          "motion": 0,
+          "seed": 1
+        }
+      },
+      "createdAt": 1790790625917
+    },
+    "blip": {
+      "synth": {
+        "preset": "blip",
+        "params": {
+          "pitch": 3,
+          "length": 0.06,
+          "brightness": 0.5,
+          "weight": 0.5,
+          "tail": 0.1,
+          "motion": 0,
+          "seed": 1
+        }
+      },
+      "createdAt": 1790790626568
+    },
+    "swish": {
+      "synth": {
+        "preset": "swish",
+        "params": {
+          "pitch": 0,
+          "length": 0.25,
+          "brightness": 0.6,
+          "weight": 0.5,
+          "tail": 0.12,
+          "motion": 0,
+          "seed": 1
+        }
+      },
+      "createdAt": 1790790627169
+    },
+    "whoosh": {
+      "synth": {
+        "preset": "whoosh",
+        "params": {
+          "pitch": 0,
+          "length": 0.7,
+          "brightness": 0.5,
+          "weight": 0.5,
+          "tail": 0.2,
+          "motion": 0.4,
+          "seed": 1
+        }
+      },
+      "createdAt": 1790790627869
+    },
+    "thud": {
+      "synth": {
+        "preset": "thud",
+        "params": {
+          "pitch": 0,
+          "length": 0.25,
+          "brightness": 0.5,
+          "weight": 0.6,
+          "tail": 0.12,
+          "motion": 0,
+          "seed": 1
+        }
+      },
+      "createdAt": 1790790628467
+    },
+    "impact": {
+      "synth": {
+        "preset": "impact",
+        "params": {
+          "pitch": 0,
+          "length": 1.6,
+          "brightness": 0.5,
+          "weight": 0.5,
+          "tail": 0.7,
+          "motion": 0,
+          "seed": 1
+        }
+      },
+      "createdAt": 1790790629117
+    },
+    "sparkle": {
+      "synth": {
+        "preset": "sparkle",
+        "params": {
+          "pitch": 0,
+          "length": 0.9,
+          "brightness": 0.5,
+          "weight": 0.5,
+          "tail": 0.4,
+          "motion": 0,
+          "seed": 1
+        }
+      },
+      "createdAt": 1790790629619
+    },
+    "riser": {
+      "synth": {
+        "preset": "reverse",
+        "params": {
+          "pitch": 0,
+          "length": 1,
+          "brightness": 0.5,
+          "weight": 0.5,
+          "tail": 0.15,
+          "motion": 0,
+          "seed": 1
+        }
+      },
+      "createdAt": 1790790630156
+    }
+  }
+}

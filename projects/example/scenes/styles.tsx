@@ -1,4 +1,4 @@
-import { Fill, ease, keyframes, mix, progress, type SceneProps } from 'storyboard';
+import { Fill, ease, keyframes, mix, progress, type SceneProps, type SceneSounds } from 'storyboard';
 import { Headline, swapWords } from '../components/Headline';
 import { PILLS_TOP, Pills, STYLE_LABELS, pillLayout } from '../components/Pills';
 import { LOOKS, PromptCard, VARIANTS } from '../components/PromptCard';
@@ -15,6 +15,14 @@ function clickTimes(music: SceneProps['music'], duration: number): number[] {
   });
   return out;
 }
+
+const WIPE = 0.36;
+
+export const sounds: SceneSounds = ({ music, duration }) =>
+  clickTimes(music, duration).flatMap((at, i) => [
+    { at, sound: 'click', pitch: [0, 1, -1, 2][i], volume: [0.95, 1.1, 1.05, 0.95][i] },
+    { at: at + WIPE / 2, sound: 'swish', align: 'peak' as const, pitch: i - 1, pan: -0.3 + i * 0.2, volume: 0.35 },
+  ]);
 
 function Cursor({ x, y, press }: { x: number; y: number; press: number }) {
   return (
@@ -52,7 +60,7 @@ export default function Styles({ t, duration, music }: SceneProps) {
   let next: typeof base | null = null;
   let wipe = 0;
   clicks.forEach((at, i) => {
-    const p = progress(t, at, at + 0.36, ease.inOutCubic);
+    const p = progress(t, at, at + WIPE, ease.inOutCubic);
     if (p <= 0) return;
     active = i + p;
     if (p >= 1) {

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { Fill, ease, mix, mixColor, progress, spring, type SceneProps } from 'storyboard';
+import { Fill, ease, mix, mixColor, progress, spring, type SceneProps, type SceneSounds } from 'storyboard';
 import { Headline, swapWords } from '../components/Headline';
 import { LogoMark, MARK_BARS, MARK_RADIUS, MARK_SIZE } from '../components/LogoMark';
 import { PILLS_TOP, Pills, STYLE_LABELS } from '../components/Pills';
@@ -36,6 +36,21 @@ const MARK_X = 960 - MARK_SIZE / 2;
 const MARK_Y = 540 - MARK_SIZE / 2;
 const MARK_DONE = 4.3;
 
+/** Moments shared by the animation and the sound cues. */
+const snapAt = (music: SceneProps['music'], from: number) => music.snap(from, 'beat');
+const LEAVE_LEN = 0.45;
+const FLY_AT = 3.45;
+const FLY_LEN = 0.65;
+const SQUARE_AT = 3.85;
+
+export const sounds: SceneSounds = ({ music }) => [
+  { at: LEAVE_LEN / 3, sound: 'swish', align: 'peak', pitch: -4, volume: 0.4 },
+  ...KEYS.map((k, i) => ({ at: snapAt(music, k.from), sound: 'blip', pitch: [0, 2, 4, 7][i], volume: 0.6 })),
+  { at: FLY_AT + FLY_LEN / 2, sound: 'whoosh', align: 'peak', pitch: 2, volume: 0.75 },
+  { at: SQUARE_AT, sound: 'pop', pitch: -5, volume: 0.6 },
+  { at: FLY_AT + FLY_LEN, sound: 'thud', volume: 0.75 },
+];
+
 function Diamond({ x, y, color, scale }: { x: number; y: number; color: string; scale: number }) {
   return (
     <div
@@ -56,7 +71,7 @@ function Diamond({ x, y, color, scale }: { x: number; y: number; color: string; 
 
 export default function Timing({ t, music }: SceneProps) {
   // Hand-off from "Every style": card and pills drop away.
-  const leave = progress(t, 0, 0.45, ease.inCubic);
+  const leave = progress(t, 0, LEAVE_LEN, ease.inCubic);
   const pillsLeave = progress(t, 0, 0.3, ease.inCubic);
 
   const swap = progress(t, 0.05, 0.9);
@@ -74,7 +89,7 @@ export default function Timing({ t, music }: SceneProps) {
   const headlineStyle: CSSProperties | undefined =
     exit > 0 ? { opacity: 1 - exit, transform: `translateY(${-36 * exit}px)` } : undefined;
 
-  const square = progress(t, 3.85, 4.25, ease.outBack);
+  const square = progress(t, SQUARE_AT, SQUARE_AT + 0.4, ease.outBack);
   const barColor = progress(t, 3.95, MARK_DONE);
 
   return (
@@ -230,7 +245,7 @@ export default function Timing({ t, music }: SceneProps) {
           {CLIPS.map((clip, i) => {
             const grow = progress(t, 0.8 + i * 0.12, 1.35 + i * 0.12, ease.outExpo);
             if (grow <= 0) return null;
-            const fly = progress(t, 3.45 + i * 0.06, 4.1 + i * 0.06, ease.inOutCubic);
+            const fly = progress(t, FLY_AT + i * 0.06, FLY_AT + FLY_LEN + i * 0.06, ease.inOutCubic);
             const target = MARK_BARS[i];
             const fromX = xAt(clip.from);
             const fromW = (clip.to - clip.from) * PPS * grow;
@@ -281,7 +296,7 @@ export default function Timing({ t, music }: SceneProps) {
       {panelOpacity > 0 && (
         <div style={{ position: 'absolute', inset: 0, opacity: panelOpacity, transform: `translateY(${rise}px)` }}>
           {KEYS.map((k, i) => {
-            const target = music.snap(k.from, 'beat');
+            const target = snapAt(music, k.from);
             const y = TRACK_Y[k.track] + CLIP_H / 2;
             const pop = progress(t, 1.05 + i * 0.05, 1.3 + i * 0.05, ease.outBack);
             const snapped = t >= target;

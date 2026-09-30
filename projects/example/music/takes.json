@@ -1,0 +1,82 @@
+{
+  "takes": [
+    {
+      "id": "tmuoeh86u1ad7",
+      "file": "tmuoeh86u1ad7.wav",
+      "source": "generated",
+      "name": "Clean, modern minimal electronic / tech-pop for a light, precise pr… (A)",
+      "prompt": "Clean, modern minimal electronic / tech-pop for a light, precise product teaser (design tool). Bright and optimistic but understated. Instrumentation: soft punchy kick, crisp closed hats, finger snaps, glassy plucked synth arpeggio, warm sub bass, airy pad, a touch of mallet/marimba. Energy arc mapped to the edit: 0–4 s sparse intro (pad + pluck arpeggio, no drums), light build; groove enters with kick and bass at ~4 s; 4–10 s steady mid-energy groove; 10–18 s full groove, rhythmic and bouncy with clear beat accents; 18–19.5 s short lift/riser with drums dropping out; strong final hit at 19.5 s followed by a sustained, resolving chord and airy tail to the end. Tight, polished, wide stereo, lots of space for sound effects. Avoid vocals, heavy distortion, aggressive EDM drops, busy melodies.",
+      "params": {
+        "duration": 25,
+        "bpm": 120,
+        "key": "F major",
+        "quality": "best"
+      },
+      "createdAt": 1790790586990,
+      "duration": 25,
+      "bpm": 119.99,
+      "sections": "A → outro"
+    },
+    {
+      "id": "tmuoeh8c7a8df",
+      "file": "tmuoeh8c7a8df.wav",
+      "source": "generated",
+      "name": "Clean, modern minimal electronic / tech-pop for a light, precise pr… (B)",
+      "prompt": "Clean, modern minimal electronic / tech-pop for a light, precise product teaser (design tool). Bright and optimistic but understated. Instrumentation: soft punchy kick, crisp closed hats, finger snaps, glassy plucked synth arpeggio, warm sub bass, airy pad, a touch of mallet/marimba. Energy arc mapped to the edit: 0–4 s sparse intro (pad + pluck arpeggio, no drums), light build; groove enters with kick and bass at ~4 s; 4–10 s steady mid-energy groove; 10–18 s full groove, rhythmic and bouncy with clear beat accents; 18–19.5 s short lift/riser with drums dropping out; strong final hit at 19.5 s followed by a sustained, resolving chord and airy tail to the end. Tight, polished, wide stereo, lots of space for sound effects. Avoid vocals, heavy distortion, aggressive EDM drops, busy melodies.",
+      "params": {
+        "duration": 25,
+        "bpm": 120,
+        "key": "F major",
+        "quality": "best"
+      },
+      "createdAt": 1790790587104,
+      "duration": 25,
+      "bpm": 120.17,
+      "sections": "intro → outro"
+    },
+    {
+      "id": "tmuoehskn9469",
+      "file": "tmuoehskn9469.wav",
+      "source": "repaint",
+      "name": "Clean, modern minimal electronic / tech-pop for a light, precise pr… · repaint 21.00–25.00s (A)",
+      "prompt": "Ending: drums stop, one final warm resolving F major chord with glassy pluck and airy pad, ringing out and fading naturally to silence by 25 s. No abrupt cut.",
+      "params": {
+        "duration": 25,
+        "bpm": 120,
+        "key": "F major",
+        "quality": "best"
+      },
+      "parentId": "tmuoeh86u1ad7",
+      "repaint": {
+        "start": 21,
+        "end": 25
+      },
+      "createdAt": 1790790613415,
+      "duration": 25,
+      "bpm": 119.99,
+      "sections": "A → outro"
+    },
+    {
+      "id": "tmuoehsq77a28",
+      "file": "tmuoehsq77a28.wav",
+      "source": "repaint",
+      "name": "Clean, modern minimal electronic / tech-pop for a light, precise pr… · repaint 21.00–25.00s (B)",
+      "prompt": "Ending: drums stop, one final warm resolving F major chord with glassy pluck and airy pad, ringing out and fading naturally to silence by 25 s. No abrupt cut.",
+      "params": {
+        "duration": 25,
+        "bpm": 120,
+        "key": "F major",
+        "quality": "best"
+      },
+      "parentId": "tmuoeh86u1ad7",
+      "repaint": {
+        "start": 21,
+        "end": 25
+      },
+      "createdAt": 1790790613524,
+      "duration": 25,
+      "bpm": 120,
+      "sections": "A → outro"
+    }
+  ]
+}

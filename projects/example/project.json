@@ -7,12 +7,12 @@
     {
       "id": "intro",
       "name": "Every scene is code",
-      "duration": 4.2
+      "duration": 4.026
     },
     {
       "id": "anatomy",
       "name": "Anatomy",
-      "duration": 5.6
+      "duration": 6
     },
     {
       "id": "styles",
@@ -30,5 +30,9 @@
       "duration": 4
     }
   ],
-  "music": null
+  "music": {
+    "file": "tmuoehsq77a28.wav",
+    "start": 0,
+    "volume": 0.8
+  }
 }

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { Fill, ease, progress, type SceneProps } from 'storyboard';
+import { Fill, ease, progress, type SceneProps, type SceneSounds } from 'storyboard';
 import { Headline, type WordState } from '../components/Headline';
 import { LOOKS, PromptCard, type LayerName } from '../components/PromptCard';
 import { BG, CARD, HEADLINE_SIZE, HEADLINE_TOP, INK, MONO, PINK } from '../components/tokens';
@@ -55,6 +55,25 @@ const TOTAL_CHARS = CODE.reduce((n, line) => n + line.reduce((m, [text]) => m + 
 const WORDS = ['Every', 'scene', 'is', 'code.'];
 const BIG = 150;
 
+/** Moments shared by the animation and the sound cues. */
+const WORD_AT = (i: number) => 0.15 + i * 0.09;
+const TYPE_START = 2.35;
+const TYPE_END = 3.15;
+const COMPILE_AT = 3.27;
+const KEY_EVERY = 0.068;
+
+export const sounds: SceneSounds = [
+  ...WORDS.map((_, i) => ({ at: WORD_AT(i), sound: 'tick', pitch: i * 2 - 3, volume: 0.45 })),
+  ...Array.from({ length: Math.floor((TYPE_END - TYPE_START) / KEY_EVERY) }, (_, i) => ({
+    at: TYPE_START + i * KEY_EVERY,
+    sound: `key-${(i % 4) + 1}`,
+    pitch: ((i * 7) % 3) - 1,
+    volume: 0.4 + ((i * 5) % 4) * 0.05,
+  })),
+  { at: COMPILE_AT, sound: 'pop', volume: 0.7 },
+  { at: COMPILE_AT, sound: 'sparkle', volume: 0.55 },
+];
+
 function CodeLines({ visible, fade }: { visible: number; fade: number }) {
   let budget = Math.floor(visible);
   let caretPlaced = false;
@@ -104,7 +123,7 @@ function CodeLines({ visible, fade }: { visible: number; fade: number }) {
 export default function Intro({ t }: SceneProps) {
   // 1. Words rise in, big and centred.
   const words: WordState[] = WORDS.map((text, i) => {
-    const start = 0.15 + i * 0.09;
+    const start = WORD_AT(i);
     const arrive = progress(t, start, start + 0.8, ease.outExpo);
     return { text, open: 1, shift: 0.42 * (1 - arrive), fade: progress(t, start, start + 0.4) };
   });
@@ -118,13 +137,13 @@ export default function Intro({ t }: SceneProps) {
 
   // 3. A code panel arrives and types itself …
   const panel = progress(t, 2.1, 2.7, ease.outExpo);
-  const typedChars = progress(t, 2.35, 3.15) * TOTAL_CHARS;
+  const typedChars = progress(t, TYPE_START, TYPE_END) * TOTAL_CHARS;
   // 4. … then compiles into the real card.
-  const codeFade = 1 - progress(t, 3.1, 3.3, ease.outCubic);
+  const codeFade = 1 - progress(t, TYPE_END - 0.05, COMPILE_AT + 0.03, ease.outCubic);
   const order: LayerName[] = ['header', 'inset', 'text', 'footer', 'send'];
   const layer = (name: LayerName): CSSProperties | undefined => {
     if (name === 'surface') return undefined;
-    const start = 3.27 + order.indexOf(name) * 0.05;
+    const start = COMPILE_AT + order.indexOf(name) * 0.05;
     const p = progress(t, start, start + 0.45, ease.outExpo);
     if (p >= 1) return undefined;
     return { opacity: p, transform: `translateY(${(1 - p) * 12}px)` };

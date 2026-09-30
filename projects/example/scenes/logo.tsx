@@ -1,4 +1,4 @@
-import { Fill, ease, mix, progress, type SceneProps } from 'storyboard';
+import { Fill, ease, mix, progress, type SceneProps, type SceneSounds } from 'storyboard';
 import { LogoMark, MARK_SIZE } from '../components/LogoMark';
 import { BG, DISPLAY, GRAY, INK } from '../components/tokens';
 
@@ -10,11 +10,22 @@ const WORD_WIDTH = 630;
 const GAP = 44;
 const LOCKUP_X = 960 - (MARK_SIZE + GAP + WORD_WIDTH) / 2;
 
+/** Moments shared by the animation and the sound cues. */
+const SLIDE_AT = 0.25;
+const REVEAL_AT = 0.3;
+const TAGLINE_AT = 1.15;
+
+export const sounds: SceneSounds = [
+  { at: REVEAL_AT, sound: 'riser', align: 'peak', volume: 0.5 },
+  { at: REVEAL_AT, sound: 'impact', volume: 0.9 },
+  { at: TAGLINE_AT, sound: 'sparkle', volume: 0.5 },
+];
+
 export default function Logo({ t, music }: SceneProps) {
-  const slide = progress(t, 0.25, 1.1, ease.smooth);
+  const slide = progress(t, SLIDE_AT, SLIDE_AT + 0.85, ease.smooth);
   const markX = mix(START_X, LOCKUP_X, slide);
-  const reveal = progress(t, 0.3, 1.15, ease.outExpo);
-  const tagline = progress(t, 1.15, 1.75, ease.outExpo);
+  const reveal = progress(t, REVEAL_AT, REVEAL_AT + 0.85, ease.outExpo);
+  const tagline = progress(t, TAGLINE_AT, TAGLINE_AT + 0.6, ease.outExpo);
   // Once the lockup has settled, the clips in the mark nudge on each bar line of the music.
   const live = progress(t, 1.6, 2.0);
   const barScale = (i: number) => 1 + 0.09 * live * music.pulse(t - i * 0.07, { grid: 'bar', decay: 5 });
