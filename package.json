@@ -12,13 +12,11 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server/index.ts",
-    "setup": "playwright install chromium",
-    "doctor": "tsx server/doctor.ts",
+    "doctor": "tsx server/cli/main.ts doctor",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node --import tsx --test \"src/**/*.test.ts\" \"server/**/*.test.ts\"",
     "format": "prettier --write \"server/**/*.ts\" \"src/**/*.{ts,tsx,css}\" index.html frame.html",
     "format:check": "prettier --check \"server/**/*.ts\" \"src/**/*.{ts,tsx,css}\" index.html frame.html",
-    "music": "tsx server/music/engine-cli.ts",
     "analyze": "tsx server/music/cli.ts"
   },
   "engines": {

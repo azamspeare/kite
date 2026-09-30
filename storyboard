@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Storyboard's command-line tool: ./storyboard help
+# This script makes sure Node.js and the npm packages are in place, then runs the command (server/cli/main.ts).
+set -euo pipefail
+
+# The app folder, also when this script is reached through a symlink.
+script="${BASH_SOURCE[0]}"
+while [ -L "$script" ]; do
+  dir="$(cd -P "$(dirname "$script")" && pwd)"
+  script="$(readlink "$script")"
+  case "$script" in /*) ;; *) script="$dir/$script" ;; esac
+done
+cd -P "$(dirname "$script")"
+
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  bold=$'\e[1m' dim=$'\e[2m' red=$'\e[31m' cyan=$'\e[36m' gray=$'\e[90m' reset=$'\e[0m'
+else
+  bold='' dim='' red='' cyan='' gray='' reset=''
+fi
+bar="${gray}│${reset}"
+open_rail() { printf '%s  %s\n' "${gray}┌${reset}" "${bold}$1${reset}"; }
+close_rail() { printf '%s\n%s  %s\n\n' "$bar" "${gray}└${reset}" "$1"; }
+
+# A yes/no question (Enter means yes); always "no" when nobody can answer.
+ask() {
+  [ -t 0 ] || return 1
+  local answer
+  printf '%s\n%s  %s %s ' "$bar" "${cyan}◆${reset}" "$1" "${dim}[Y/n]${reset}"
+  read -r answer || return 1
+  case "$answer" in "" | [Yy]*) return 0 ;; *) return 1 ;; esac
+}
+
+node_ok() {
+  command -v node >/dev/null 2>&1 || return 1
+  local version major minor
+  version="$(node -p 'process.versions.node' 2>/dev/null)" || return 1
+  major="${version%%.*}"
+  minor="${version#*.}"
+  minor="${minor%%.*}"
+  [ "$major" -gt 22 ] || { [ "$major" -eq 22 ] && [ "$minor" -ge 12 ]; }
+}
+
+if ! node_ok; then
+  open_rail Storyboard
+  if command -v node >/dev/null 2>&1; then
+    printf '%s  %s\n' "$bar" "${red}✗${reset} Storyboard needs Node.js 22.12 or newer; this is $(node --version)"
+  else
+    printf '%s  %s\n' "$bar" "${red}✗${reset} Storyboard needs Node.js 22.12 or newer, and it isn't installed"
+  fi
+  if [ "$(uname)" = Darwin ] && command -v brew >/dev/null 2>&1 && ask "Install it with Homebrew now? (brew install node)"; then
+    brew install node
+    hash -r
+  fi
+  if ! node_ok; then
+    close_rail "Install Node.js 22.12 or newer from ${cyan}https://nodejs.org${reset} (or: nvm install), then run this again"
+    exit 1
+  fi
+fi
+
+# A fresh clone: install the npm packages first (exact versions from package-lock.json; no install scripts run).
+if [ ! -e node_modules/tsx/package.json ]; then
+  if [ "${1:-}" != setup ]; then
+    open_rail Storyboard
+    close_rail "Not set up yet · run ${cyan}./storyboard setup${reset}"
+    exit 1
+  fi
+  mkdir -p .storyboard/logs
+  log=.storyboard/logs/setup.log
+  echo "./storyboard setup, $(date)" >"$log"
+  open_rail "Storyboard setup"
+  npm ci --ignore-scripts --no-audit --no-fund >>"$log" 2>&1 &
+  pid=$!
+  frames=(◒ ◐ ◓ ◑)
+  i=0
+  [ -t 1 ] && printf '\e[?25l'
+  while kill -0 "$pid" 2>/dev/null; do
+    [ -t 1 ] && printf '\r\e[2K%s  %s npm packages %s' "$bar" "${cyan}${frames[i++ % 4]}${reset}" "${dim}· installing${reset}"
+    sleep 0.1
+  done
+  [ -t 1 ] && printf '\r\e[2K\e[?25h'
+  if ! wait "$pid"; then
+    printf '%s  %s\n' "$bar" "${red}✗${reset} npm packages ${dim}· npm ci failed${reset}"
+    tail -n 8 "$log" | while IFS= read -r line; do printf '%s    %s\n' "$bar" "${dim}${line}${reset}"; done
+    close_rail "${red}Setup stopped${reset} · the whole log: $log"
+    exit 1
+  fi
+  # setup.ts carries on from here: it continues the rail and says how many packages were installed.
+  STORYBOARD_NPM_INSTALLED="$(grep -oE 'added [0-9]+ packages?' "$log" | grep -oE '[0-9]+' | tail -n 1 || true)"
+  export STORYBOARD_RAIL=open STORYBOARD_NPM_INSTALLED
+fi
+
+exec node --import tsx server/cli/main.ts "$@"

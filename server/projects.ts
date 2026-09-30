@@ -1,7 +1,15 @@
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { MusicAnalysis, ProjectFile, ProjectState, ProjectSummary, SceneMeta, SceneState } from '../src/shared/types';
+import type {
+  MusicAnalysis,
+  ProjectFile,
+  ProjectState,
+  ProjectSummary,
+  SceneMeta,
+  SceneState,
+  SoundInfo,
+} from '../src/shared/types';
 import { INTERNAL_DIR } from './config';
 import { analysisPath } from './music/library';
 import { ART_DIRECTION_TEMPLATE, SCENE_GUIDE, starterScene } from './templates';
@@ -21,13 +29,15 @@ export interface CreateSceneInput {
 
 /**
  * Projects live as plain folders under the projects root:
- *   <id>/project.json, scenes/<scene>.tsx, components/, assets/, art-direction.md, music/, music.json, renders/
+ *   <id>/project.json, scenes/<scene>.tsx, components/, assets/, art-direction.md, music/, music.json, sounds/, renders/
  */
 export class ProjectStore {
   readonly events = new EventEmitter();
   private mutex = new KeyedMutex();
   private generations = new Map<string, number>();
   private stamps = new Map<string, Map<string, number>>();
+  /** The measured sound library for ProjectState.sounds (the server wires in SoundLibrary). */
+  soundInfo: (id: string) => Promise<SoundInfo[]> = async () => [];
 
   constructor(readonly root: string) {}
 
@@ -125,6 +135,10 @@ export class ProjectStore {
       musicUrl = `/@fs${path.join(dir, 'music', data.music.file)}`;
     }
     const artDirection = await fs.readFile(path.join(dir, 'art-direction.md'), 'utf8').catch(() => '');
+    const sounds = await this.soundInfo(id).catch((e: Error) => {
+      console.warn(`[storyboard] sounds of ${id}: ${e.message}`);
+      return [];
+    });
     return {
       ...data,
       id,
@@ -132,6 +146,7 @@ export class ProjectStore {
       scenes,
       musicAnalysis,
       musicUrl,
+      sounds,
       artDirection,
       codeGeneration: this.generations.get(id) ?? 0,
     };

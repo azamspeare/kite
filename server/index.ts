@@ -15,6 +15,9 @@ import { MusicService } from './music/service';
 import { ProjectStore } from './projects';
 import { Renderer } from './render';
 import { SeamService } from './seams';
+import { SfxEngine } from './sound/engine';
+import { SoundLibrary } from './sound/library';
+import { SoundService } from './sound/service';
 import { UndoStore } from './undo';
 import { createVite, diagnoseFile, invalidateProjectModules } from './vite';
 
@@ -65,15 +68,20 @@ async function main() {
 
   const capturer = new Capturer(store);
   const seams = new SeamService(store, capturer, hub);
-  const renderer = new Renderer(store, capturer, hub);
   const provider = new ClaudeCodeProvider();
   const undo = new UndoStore(store);
-  // The music engine is started with `npm run music start`; Storyboard only watches it.
+  // The music and sound-effects engines are started with `./storyboard start`; Storyboard only watches them.
   const engine = new MusicEngine();
   await engine.init();
+  const sfx = new SfxEngine();
+  await sfx.init();
   const library = new MusicLibrary(store);
   const music = new MusicService({ store, engine, library });
-  const chats = new ChatManager({ store, hub, provider, seams, undo, engine });
+  const soundLibrary = new SoundLibrary(store);
+  store.soundInfo = (id) => soundLibrary.infos(id);
+  const sounds = new SoundService({ store, library: soundLibrary, capturer, engine: sfx });
+  const renderer = new Renderer(store, capturer, hub, sounds);
+  const chats = new ChatManager({ store, hub, provider, seams, undo, engine, sfx });
   const api = createApi({
     store,
     hub,
@@ -83,6 +91,7 @@ async function main() {
     chats,
     library,
     music,
+    soundLibrary,
     diagnose: (file) => diagnoseFile(vite, file),
   });
   const apiListener = getRequestListener(api.fetch);
@@ -117,7 +126,7 @@ async function main() {
       }
       if (url === '/api/events') return hub.handleSse(req, res);
       if (isMcp) {
-        handleMcp(req, res, { store, capturer, seams, engine, library, music }).catch((e: Error) => {
+        handleMcp(req, res, { store, capturer, seams, engine, library, music, sfx, soundLibrary, sounds }).catch((e: Error) => {
           console.error('[storyboard] MCP error:', e);
           if (!res.headersSent) res.writeHead(500).end(e.message);
         });
@@ -143,6 +152,7 @@ async function main() {
     if (closing) return;
     closing = true;
     engine.stop();
+    sfx.stop();
     await capturer.close().catch(() => undefined);
     await vite.close().catch(() => undefined);
     process.exit(0);

@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { FrameApi, FrameMessage } from '../../shared/frameApi';
+import type { SoundReport } from '../../shared/types';
 
 export interface FrameHandle {
   api(): FrameApi | null;
@@ -17,6 +18,8 @@ interface Props {
   title?: string;
   onReady?: () => void;
   onErrors?: (errors: string[]) => void;
+  /** Whole-video frames report every scene's sound cues after each reload that changes them. */
+  onSounds?: (report: SoundReport) => void;
 }
 
 /** Same-origin iframe running frame.html; exposes its FrameApi. */
@@ -50,6 +53,8 @@ export const FrameView = forwardRef<FrameHandle, Props>(function FrameView(props
         callbacks.current.onReady?.();
       } else if (msg.type === 'errors') {
         callbacks.current.onErrors?.(msg.errors);
+      } else if (msg.type === 'sounds') {
+        callbacks.current.onSounds?.(msg.report);
       }
     };
     window.addEventListener('message', onMessage);

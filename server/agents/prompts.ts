@@ -21,7 +21,8 @@ Rules for this chat:
 - Edit only scenes/${s.id}.tsx. Read anything else in the project for reference (other scenes, components/, art-direction.md), but don't change it; if a request needs other files changed, say so and suggest the Project chat.
 - Change this scene's length with set_scene_duration. Never edit project.json.
 - The soundtrack is chosen and changed in the Project chat; here you can read its beat grid with get_music_context.
-- Keep everything the user didn't ask to change: timing, the handoffs into and out of the neighbouring scenes, and music sync.
+- This scene's sound effects are its \`sounds\` export. You may add new sounds to the library (create_sound, or generate_sound when the sound-effects engine runs) but not replace existing ones — other scenes may use them.
+- Keep everything the user didn't ask to change: timing, the handoffs into and out of the neighbouring scenes, music sync and sound cues (move cues with the moments they belong to).
 - The storyboard tools default to this project and scene.
 
 How to work:
@@ -29,7 +30,8 @@ How to work:
 2. Make the change.
 3. Check it with render_frames — the moments you changed plus t = 0 and t = duration — and fix anything that looks off.
 4. If you touched the first or last ~0.4 s or the duration, run check_seams and report what it says.
-5. Reply briefly in plain language: what you changed and how it now behaves (with timings in seconds), seam results when relevant, and any open question. No code in the reply unless asked.${guideSection()}`;
+5. If you added or moved sound cues, run check_audio for this scene and fix faint, masked or broken cues.
+6. Reply briefly in plain language: what you changed and how it now behaves (with timings in seconds), seam and audio results when relevant, and any open question. No code in the reply unless asked.${guideSection()}`;
 }
 
 export function projectSystemPrompt(p: ProjectState): string {
@@ -49,14 +51,27 @@ Music (when the context says the music engine is running):
 - You choose the soundtrack yourself, like a music supervisor: decide genre, mood, instrumentation, tempo and key from the art direction, pacing and content. Don't ask the user for a style. Compose one when the user asks for music or a different sound, or when you're taking the video to a finished state and it has no soundtrack.
 - Plan the music around the edit: map scenes to an energy arc (e.g. build under the opening, drop on the first reveal, a break before the finale, a hit on the logo) and write those moments into the brief with their times. Pick a BPM whose bar (240 / BPM s in 4/4) fits the scene lengths.
 - generate_music makes 2 takes by default and measures them (you can't hear audio): compare their sections, strongest hits and bar lines against the cuts, choose the best fit, use_music_take, then usually snap_cuts_to_music to bars and check_seams. Use repaint_music to fix one part instead of regenerating everything.
-- Tell the user what you chose and why in a sentence or two, and that they can ask for changes.${guideSection()}`;
+- Tell the user what you chose and why in a sentence or two, and that they can ask for changes.
+
+Sound design (synth sounds need no engine, so this is always possible):
+- Sound effects are part of the audio. When the user asks for audio, sound or sound effects, or you're taking the video to a finished state, design them yourself like a sound designer; don't ask which sounds to use. They are separate cues, never part of the music: don't use repaint_music for effects.
+- Choose the moments that deserve a sound: interactions (clicks, keystrokes, toggles), entrances and reveals (pops, swishes), data and UI (blips, ticks), emphasis (impacts, thuds, sub-drops, risers or reverse swells into a cut) and the ending (a logo hit with a tail). Leave space: not every motion needs a sound, and busy passages get fewer, quieter ones.
+- Build a small, consistent palette with create_sound (generate_sound for realistic or specific sounds while the sound-effects engine runs; list_sounds also shows files the user put in sounds/) and reuse it across scenes.
+- Place cues in each scene's \`sounds\` export. Name each moment once (a constant, or a helper on the scene props when it comes from the \`music\` grid) and use it in both the animation and the cues; never copy numbers from one into the other. Use align: 'peak' for whooshes, risers and swells that must land on a moment. Vary repeated sounds (pitch ±1 semitone, volume ±15 %, or variants).
+- Then run check_audio and fix faint or masked cues (volume, a sound in a range the music leaves free, or set_music_volume), cues the limiter squashes, and broken or missing cues. Tell the user what you placed in a sentence or two; they can listen in the preview.${guideSection()}`;
 }
 
 function sceneLine(s: SceneState | undefined, fallback: string): string {
   return s ? `${s.index + 1} "${s.name}" (${s.id}, ${formatSeconds(s.duration)})` : fallback;
 }
 
-export function sceneTurnPrompt(p: ProjectState, s: SceneState, text: string, playhead?: number): string {
+function soundLibraryLine(p: ProjectState): string {
+  if (p.sounds.length === 0) return 'Sound library: empty.';
+  const names = p.sounds.slice(0, 30).map((x) => x.name);
+  return `Sound library: ${names.join(', ')}${p.sounds.length > 30 ? `, … (${p.sounds.length} in all)` : ''}.`;
+}
+
+export function sceneTurnPrompt(p: ProjectState, s: SceneState, text: string, playhead?: number, sfxEngine?: string): string {
   const prev = p.scenes[s.index - 1];
   const next = p.scenes[s.index + 1];
   const context = [
@@ -65,11 +80,13 @@ export function sceneTurnPrompt(p: ProjectState, s: SceneState, text: string, pl
     `Next scene: ${sceneLine(next, 'none (this scene ends the video)')}.`,
     playhead !== undefined ? `The user is looking at t = ${playhead.toFixed(2)}s of this scene in the preview.` : '',
     sceneMusicContext(p, s, false),
+    soundLibraryLine(p),
+    sfxEngine ?? '',
   ].filter(Boolean);
   return `<storyboard_context>\n${context.join('\n')}\n</storyboard_context>\n\n${text}`;
 }
 
-export function projectTurnPrompt(p: ProjectState, text: string, playhead?: number, musicEngine?: string): string {
+export function projectTurnPrompt(p: ProjectState, text: string, playhead?: number, engines: string[] = []): string {
   const context = [
     `${p.scenes.length} scenes, ${formatSeconds(p.scenes.reduce((sum, s) => sum + s.duration, 0))} total:`,
     ...p.scenes.map(
@@ -77,7 +94,8 @@ export function projectTurnPrompt(p: ProjectState, text: string, playhead?: numb
     ),
     playhead !== undefined ? `The user is looking at video time ${playhead.toFixed(2)}s.` : '',
     musicSummary(p),
-    musicEngine ?? '',
+    soundLibraryLine(p),
+    ...engines,
   ].filter(Boolean);
   return `<storyboard_context>\n${context.join('\n')}\n</storyboard_context>\n\n${text}`;
 }

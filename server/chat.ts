@@ -9,6 +9,7 @@ import { DEFAULT_EFFORT, DEFAULT_MODEL, EFFORTS, MCP_URL, type Effort } from './
 import type { Hub } from './hub';
 import type { ProjectStore } from './projects';
 import type { SeamService } from './seams';
+import type { SfxEngine } from './sound/engine';
 import type { UndoStore } from './undo';
 import { HttpError, readJson, round, writeJson } from './util';
 
@@ -25,7 +26,20 @@ export interface SendInput {
   effort?: string;
 }
 
-const SCENE_TOOLS = ['get_project', 'render_frames', 'check_seams', 'get_music_context', 'set_scene_duration', 'rename_scene'];
+const SCENE_TOOLS = [
+  'get_project',
+  'render_frames',
+  'check_seams',
+  'get_music_context',
+  'set_scene_duration',
+  'rename_scene',
+  // A scene chat places cues in its own scene and may add (never replace) sounds.
+  'list_sounds',
+  'describe_sound',
+  'create_sound',
+  'generate_sound',
+  'check_audio',
+];
 
 /** Chat threads per scene (and one per project), each backed by its own agent session. */
 export class ChatManager {
@@ -39,6 +53,7 @@ export class ChatManager {
       seams: SeamService;
       undo: UndoStore;
       engine: MusicEngine;
+      sfx: SfxEngine;
     },
   ) {}
 
@@ -170,8 +185,11 @@ export class ChatManager {
       const turn: AgentTurn = {
         cwd: project.dir,
         prompt: scene
-          ? sceneTurnPrompt(project, scene, input.text.trim(), input.playhead)
-          : projectTurnPrompt(project, input.text.trim(), input.playhead, this.deps.engine.describe()),
+          ? sceneTurnPrompt(project, scene, input.text.trim(), input.playhead, this.deps.sfx.describe())
+          : projectTurnPrompt(project, input.text.trim(), input.playhead, [
+              this.deps.engine.describe(),
+              this.deps.sfx.describe(),
+            ]),
         systemPrompt: scene ? sceneSystemPrompt(project, scene) : projectSystemPrompt(project),
         sessionId,
         resume,
@@ -350,6 +368,22 @@ function describeTool(name: string, input: Record<string, unknown>, p: ProjectSt
       return `Switched the soundtrack to ${String(input.take_id)}`;
     case 'repaint_music':
       return `Repainting ${round(Number(input.start), 2)}–${round(Number(input.end), 2)}s of ${String(input.take_id)}`;
+    case 'list_sounds':
+      return 'Listed the sounds';
+    case 'describe_sound':
+      return `Measured the sound “${String(input.name)}”`;
+    case 'create_sound': {
+      const n = Number(input.variants ?? 1);
+      return `Made ${n > 1 ? `${n} “${String(input.name)}” variants` : `the sound “${String(input.name)}”`} (${String(input.preset)})`;
+    }
+    case 'generate_sound':
+      return `Generating “${String(input.name)}”: ${String(input.prompt ?? '').slice(0, 60)}`;
+    case 'delete_sound':
+      return `Removed the sound “${String(input.name)}”`;
+    case 'check_audio':
+      return input.scene ? `Checked the audio of ${String(input.scene)}` : 'Checked the audio mix';
+    case 'set_music_volume':
+      return `Set the music volume to ${round(Number(input.volume), 2)}`;
     default:
       return tool.replace(/_/g, ' ');
   }
@@ -370,7 +404,21 @@ function summarizeOutput(name: string, output: string, isError: boolean): string
       .join('\n')
       .slice(0, 600);
   if (tool === 'render_frames' && clean.includes('ERRORS')) return clean.slice(clean.indexOf('ERRORS'), 600);
-  if (tool === 'set_scene_duration' || tool === 'snap_cuts_to_music' || tool === 'use_music_take') return clean.split('\n')[0];
+  if (tool === 'set_scene_duration' || tool === 'snap_cuts_to_music' || tool === 'use_music_take' || tool === 'set_music_volume')
+    return clean.split('\n')[0];
+  if (tool === 'check_audio') {
+    // The loudness line, then the cues that need attention.
+    const lines = clean.split('\n');
+    const notable = lines.filter((l) => /→ (faint|masked|silent)|limiter −[2-9]|^- /.test(l));
+    return [lines[1], ...notable].filter(Boolean).join('\n').slice(0, 600);
+  }
+  if (tool === 'create_sound' || tool === 'generate_sound') {
+    return clean
+      .split('\n')
+      .filter((l) => l.startsWith('Sound "') || l.includes(' s long'))
+      .join('\n')
+      .slice(0, 600);
+  }
   if (tool === 'generate_music' || tool === 'wait_for_music' || tool === 'repaint_music' || tool === 'describe_music_take') {
     // One line per take: its id/name and the measured tempo line.
     return clean

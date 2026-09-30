@@ -1,5 +1,6 @@
 // Contract between a scene frame (frame.html) and whoever hosts it: the editor
 // (same-origin iframe) or the headless capture service (Playwright).
+import type { SoundReport } from './types';
 
 export interface FrameRenderResult {
   /** Errors raised while importing or rendering the scene(s) shown in this frame. */
@@ -25,12 +26,16 @@ export interface FrameApi {
   duration(): number;
   /** Errors from the most recent load/render. */
   errors(): string[];
+  /** Sound cues of the loaded scenes in video time (every scene in whole-video mode), with problems found in them. */
+  sounds(): SoundReport;
 }
 
 export type FrameMessage =
   | { source: 'sb-frame'; type: 'ready' }
   | { source: 'sb-frame'; type: 'reloaded' }
-  | { source: 'sb-frame'; type: 'errors'; errors: string[] };
+  | { source: 'sb-frame'; type: 'errors'; errors: string[] }
+  /** Whole-video frames in the editor post their cues after every (re)load that changes them. */
+  | { source: 'sb-frame'; type: 'sounds'; report: SoundReport };
 
 declare global {
   interface Window {

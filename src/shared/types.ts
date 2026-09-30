@@ -46,6 +46,44 @@ export interface MusicAnalysis {
   waveform: number[];
 }
 
+/** A sound in the project's library (sounds/): what cues refer to by name. */
+export interface SoundInfo {
+  name: string;
+  /** synth: a recipe in sounds/sounds.json · generated: made by the sound-effects engine · file: an audio file in sounds/. */
+  source: 'synth' | 'generated' | 'file';
+  /** 48 kHz stereo WAV of the sound, versioned so browsers can cache it. */
+  url: string;
+  /** Seconds. */
+  duration: number;
+  /** Seconds from the start to the loudest moment (what `align: 'peak'` lines up). */
+  peak: number;
+  /** How it was made: preset and settings, the prompt, or the file name. */
+  label: string;
+}
+
+/** A scene's sound cue resolved to video time. Frames report these; the preview and renders play them. */
+export interface ResolvedCue {
+  sceneId: string;
+  /** Position in the scene's `sounds` list. */
+  index: number;
+  /** Scene-local seconds, as written in the scene. */
+  at: number;
+  /** Video seconds of `at` (scene start + at). With align 'peak' the sound starts earlier, by its peak time. */
+  t: number;
+  sound: string;
+  volume: number;
+  pitch: number;
+  pan: number;
+  align: 'start' | 'peak';
+  duration?: number;
+}
+
+/** Every cue of the scenes a frame has loaded, plus problems found while collecting them. */
+export interface SoundReport {
+  cues: ResolvedCue[];
+  errors: string[];
+}
+
 /** What the editor/runtime receive for a project (project.json plus derived data). */
 export interface ProjectState extends ProjectFile {
   id: string;
@@ -54,6 +92,8 @@ export interface ProjectState extends ProjectFile {
   musicAnalysis: MusicAnalysis | null;
   /** URL the browser can load the audio from, if any. */
   musicUrl: string | null;
+  /** The sound-effect library (sounds/), measured. */
+  sounds: SoundInfo[];
   artDirection: string;
   /** Bumped whenever any code file in the project changes; frames re-import scenes when it moves. */
   codeGeneration: number;
@@ -146,6 +186,8 @@ export interface RenderJob {
   output?: string;
   outputUrl?: string;
   error?: string;
+  /** Sound cues that were left out (e.g. a missing sound) — the render still finishes. */
+  warnings?: string[];
 }
 
 export interface RenderFile {

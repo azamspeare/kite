@@ -22,3 +22,4 @@ export { createMusic, type Music, type MusicGrid, type MusicSection } from './mu
 export { Fill, SplitText, typed, asset, useScene, SceneContext } from './components';
 export { measureText, type TextStyle } from './text';
 export type { SceneProps, SceneInfo } from './types';
+export type { SoundCue, SoundProps, SceneSounds } from './sound';

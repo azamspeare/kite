@@ -1,4 +1,3 @@
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,15 +8,36 @@ export const PORT = Number(process.env.PORT ?? 5199);
 export const BASE_URL = `http://${HOST}:${PORT}`;
 export const MCP_URL = `${BASE_URL}/mcp`;
 
+/**
+ * Everything `./storyboard` installs or keeps for this machine lives in the app folder (git-ignored):
+ * the choices made in setup, uv and its Python, headless Chromium, the engines' API keys, PID files and logs.
+ */
+export const LOCAL_DIR = path.join(ROOT, '.storyboard');
+export const SETTINGS_FILE = path.join(LOCAL_DIR, 'settings.json');
+export const LOG_DIR = path.join(LOCAL_DIR, 'logs');
+export const RUN_DIR = path.join(LOCAL_DIR, 'run');
+export const KEYS_DIR = path.join(LOCAL_DIR, 'keys');
+export const BROWSERS_DIR = path.join(LOCAL_DIR, 'browsers');
+// Playwright reads this once, when it loads; capture.ts and doctor.ts import Playwright lazily, after this ran.
+process.env.PLAYWRIGHT_BROWSERS_PATH ||= BROWSERS_DIR;
+
 /** Music engine (ACE-Step's REST API). Local by default; point it at another machine later. */
 export const MUSIC_URL = (process.env.STORYBOARD_MUSIC_URL ?? 'http://127.0.0.1:8001').replace(/\/+$/, '');
-/** Local ACE-Step install that Storyboard can start and stop. */
-export const ACESTEP_DIR = path.resolve(process.env.ACESTEP_DIR ?? path.join(os.homedir(), 'Tools', 'ace-step'));
-export const UV_BIN = process.env.UV_PATH ?? 'uv';
-/** Where the music engine CLI keeps its API key, PID file and log. */
-export const MUSIC_STATE_DIR = path.join(os.homedir(), '.config', 'storyboard');
+/** The local ACE-Step install made by `./storyboard setup`: its code, Python environment and checkpoints. */
+export const MUSIC_DIR = path.join(ROOT, 'engines', 'music');
+export const MUSIC_PYTHON = path.join(MUSIC_DIR, '.venv', 'bin', 'python');
 /** Shared secret between Storyboard and the engine; created on first use. */
-export const MUSIC_KEY_FILE = path.join(MUSIC_STATE_DIR, 'music-api-key');
+export const MUSIC_KEY_FILE = path.join(KEYS_DIR, 'music');
+
+/** Sound-effects engine (Stable Audio Open behind engines/sfx/server.py). Local by default. */
+export const SFX_URL = (process.env.STORYBOARD_SFX_URL ?? 'http://127.0.0.1:8002').replace(/\/+$/, '');
+/** The engine's Python project (pyproject.toml, uv.lock, server.py); setup adds its .venv and the model. */
+export const SFX_DIR = path.join(ROOT, 'engines', 'sfx');
+export const SFX_PYTHON = path.join(SFX_DIR, '.venv', 'bin', 'python');
+/** The Hugging Face cache holding Stable Audio Open (server.py points HF_HUB_CACHE here). */
+export const SFX_MODELS_DIR = path.join(SFX_DIR, 'models');
+/** Shared secret between Storyboard and the sound-effects engine; created on first use. */
+export const SFX_KEY_FILE = path.join(KEYS_DIR, 'sfx');
 
 export const FFMPEG = process.env.FFMPEG_PATH ?? 'ffmpeg';
 export const CLAUDE_BIN = process.env.CLAUDE_PATH ?? 'claude';

@@ -92,6 +92,7 @@ export function RenderView() {
         <p className="dim">
           {project.scenes.length} scene{project.scenes.length === 1 ? '' : 's'} · {totalDuration(project).toFixed(2)}s ·{' '}
           {project.music ? `with “${project.music.file}”` : 'no soundtrack'}
+          {project.sounds.length > 0 && ' and sound effects'}
         </p>
         <div className="field">
           <span>Resolution</span>
@@ -125,9 +126,15 @@ export function RenderView() {
           </button>
         )}
         {!active && last?.status === 'error' && <div className="notice notice-error">{last.error}</div>}
+        {last?.warnings && last.warnings.length > 0 && (
+          <div className="notice notice-warn">
+            Some sound cues were left out: {last.warnings.slice(0, 3).join(' · ')}
+            {last.warnings.length > 3 ? ` (+${last.warnings.length - 3} more)` : ''}
+          </div>
+        )}
         <p className="hint">
           Every frame is rendered headlessly from the same scene code as the preview, then encoded to H.264 (BT.709) with the
-          soundtrack.
+          soundtrack and sound effects mixed in.
         </p>
       </div>
       <div className="render-list">

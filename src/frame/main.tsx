@@ -9,9 +9,11 @@ import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import { SceneContext, setAssetBase } from '../runtime/components';
 import { createMusic, type Music } from '../runtime/music';
+import type { SoundProps } from '../runtime/sound';
 import type { SceneProps } from '../runtime/types';
+import { readCue } from '../shared/cues';
 import type { FrameApi, FrameMessage, FrameRenderResult } from '../shared/frameApi';
-import type { ProjectState, SceneState } from '../shared/types';
+import type { ProjectState, ResolvedCue, SceneState, SoundReport } from '../shared/types';
 
 type Mode = 'editor' | 'thumb' | 'capture' | 'present';
 
@@ -24,6 +26,8 @@ let currentT = Number(query.get('t') ?? 0) || 0;
 interface LoadedScene {
   key: string;
   Comp: ComponentType<SceneProps> | null;
+  /** The module's `sounds` export, unchecked. */
+  sounds: unknown;
   error: string | null;
 }
 
@@ -34,6 +38,7 @@ const musicCache = new Map<string, Music>();
 let renderErrors: string[] = [];
 let lastErrors: string[] = [];
 let lastPosted = '';
+let lastSounds = '';
 let boundaryEpoch = 0;
 
 const root = createRoot(document.getElementById('root')!);
@@ -109,13 +114,13 @@ async function loadScenes(p: ProjectState) {
       if (modules.get(scene.id)?.key === key) return;
       const url = `${scene.url}?t=g${key}`;
       try {
-        const mod = (await import(/* @vite-ignore */ url)) as { default?: unknown };
+        const mod = (await import(/* @vite-ignore */ url)) as { default?: unknown; sounds?: unknown };
         if (typeof mod.default !== 'function') {
           throw new Error(`scenes/${scene.id}.tsx must have a default export that is a React component`);
         }
-        modules.set(scene.id, { key, Comp: mod.default as ComponentType<SceneProps>, error: null });
+        modules.set(scene.id, { key, Comp: mod.default as ComponentType<SceneProps>, sounds: mod.sounds, error: null });
       } catch (e) {
-        modules.set(scene.id, { key, Comp: null, error: await describeImportError(scene, e) });
+        modules.set(scene.id, { key, Comp: null, sounds: undefined, error: await describeImportError(scene, e) });
       }
     }),
   );
@@ -137,6 +142,7 @@ function reload(options: { force?: boolean } = {}): Promise<void> {
       loadError = formatError(e);
     }
     renderAt(currentT);
+    postSounds();
     post({ type: 'reloaded' });
   });
   return reloadChain;
@@ -175,6 +181,59 @@ function musicFor(p: ProjectState, scene: SceneState): Music {
     musicCache.set(key, music);
   }
   return music;
+}
+
+// ---------------------------------------------------------------------------
+// Sound cues
+
+/** Evaluate every loaded scene's `sounds` export into cues in video time. */
+function collectSounds(): SoundReport {
+  const cues: ResolvedCue[] = [];
+  const errors: string[] = [];
+  if (!project) return { cues, errors };
+  for (const scene of scenesToLoad(project)) {
+    const loaded = modules.get(scene.id);
+    if (!loaded || loaded.sounds === undefined || loaded.sounds === null) continue;
+    const label = `scenes/${scene.id}.tsx`;
+    let list: unknown = loaded.sounds;
+    if (typeof list === 'function') {
+      const props: SoundProps = {
+        duration: scene.duration,
+        width: project.width,
+        height: project.height,
+        fps: project.fps,
+        music: musicFor(project, scene),
+        scene: { id: scene.id, name: scene.name, index: scene.index, count: project.scenes.length, start: scene.start },
+      };
+      try {
+        list = (list as (p: SoundProps) => unknown)(props);
+      } catch (e) {
+        errors.push(`${label}: the sounds export threw: ${formatError(e)}`);
+        continue;
+      }
+    }
+    if (!Array.isArray(list)) {
+      errors.push(`${label}: \`sounds\` must be an array of cues or a function that returns one`);
+      continue;
+    }
+    list.forEach((raw, index) => {
+      const cue = readCue(raw);
+      if (typeof cue === 'string') errors.push(`${label}: sounds[${index}] ${cue}`);
+      else cues.push({ sceneId: scene.id, index, t: Math.round((scene.start + cue.at) * 1e6) / 1e6, ...cue });
+    });
+  }
+  cues.sort((a, b) => a.t - b.t);
+  return { cues, errors };
+}
+
+/** Whole-video frames tell the editor about their cues (it plays them in the preview). */
+function postSounds() {
+  if (sceneId !== null || mode === 'capture' || mode === 'thumb') return;
+  const report = collectSounds();
+  const signature = JSON.stringify(report);
+  if (signature === lastSounds) return;
+  lastSounds = signature;
+  post({ type: 'sounds', report });
 }
 
 function layout(p: ProjectState) {
@@ -375,6 +434,7 @@ const api: FrameApi = {
     return totalDuration(project);
   },
   errors: () => lastErrors,
+  sounds: () => collectSounds(),
 };
 window.__sb = api;
 

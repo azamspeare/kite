@@ -1,7 +1,8 @@
 import pixelmatch from 'pixelmatch';
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import type { Browser, BrowserContext, Page } from 'playwright';
 import { PNG } from 'pngjs';
 import type { FrameRenderResult } from '../src/shared/frameApi';
+import type { SoundReport } from '../src/shared/types';
 import { AGENT_FRAME_QUALITY, AGENT_FRAME_SCALE, BASE_URL } from './config';
 import type { ProjectStore } from './projects';
 import { KeyedMutex } from './util';
@@ -44,21 +45,24 @@ export class Capturer {
 
   browser(): Promise<Browser> {
     if (!this.browserPromise) {
-      this.browserPromise = chromium
-        .launch({
-          args: [
-            '--force-color-profile=srgb',
-            '--disable-lcd-text',
-            '--hide-scrollbars',
-            '--mute-audio',
-            '--disable-background-timer-throttling',
-            '--disable-renderer-backgrounding',
-            '--disable-backgrounding-occluded-windows',
-          ],
-        })
+      // Imported here, not at the top: config.ts must set PLAYWRIGHT_BROWSERS_PATH (the app folder) before Playwright loads.
+      this.browserPromise = import('playwright')
+        .then(({ chromium }) =>
+          chromium.launch({
+            args: [
+              '--force-color-profile=srgb',
+              '--disable-lcd-text',
+              '--hide-scrollbars',
+              '--mute-audio',
+              '--disable-background-timer-throttling',
+              '--disable-renderer-backgrounding',
+              '--disable-backgrounding-occluded-windows',
+            ],
+          }),
+        )
         .catch((e: Error) => {
           this.browserPromise = null;
-          throw new Error(`Could not start headless Chromium. Run "npm run setup" once. (${e.message})`);
+          throw new Error(`Could not start headless Chromium. Run "./storyboard setup". (${e.message})`);
         });
     }
     return this.browserPromise;
@@ -169,6 +173,17 @@ export class Capturer {
       }
       return out;
     });
+  }
+
+  /** Every scene's sound cues in video time, evaluated by a whole-video frame from the scene code as it is now. */
+  async sounds(projectId: string): Promise<SoundReport> {
+    return this.withPage(projectId, true, AGENT_FRAME_SCALE, (page) =>
+      withTimeout(
+        page.evaluate(() => window.__sb!.sounds()),
+        RENDER_TIMEOUT_MS,
+        'Collecting the sound cues timed out',
+      ),
+    );
   }
 
   /** Last frame of `fromId` (t = duration) against the first frame of `toId` (t = 0). */

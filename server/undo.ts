@@ -15,7 +15,8 @@ interface UndoRecord {
 }
 
 async function trackedFiles(dir: string): Promise<string[]> {
-  const out = ['project.json', 'art-direction.md'];
+  // sounds/sounds.json holds the synth recipes and generated sounds Claude made; their audio follows it.
+  const out = ['project.json', 'art-direction.md', 'sounds/sounds.json'];
   for (const sub of ['scenes', 'components']) {
     const entries = await fs.readdir(path.join(dir, sub), { recursive: true, withFileTypes: true }).catch(() => []);
     for (const e of entries) {

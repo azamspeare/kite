@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { ACESTEP_DIR, MUSIC_KEY_FILE, MUSIC_URL } from '../config';
+import { MUSIC_DIR, MUSIC_KEY_FILE, MUSIC_PYTHON, MUSIC_URL } from '../config';
+import { readSettings } from '../settings';
 
 export interface EngineRequest {
   task: 'text2music' | 'repaint';
@@ -41,18 +42,33 @@ export interface EngineHealth {
   lmModel?: string;
 }
 
-export type EngineState = 'not-installed' | 'stopped' | 'loading' | 'ready';
+/** off: turned off in `./storyboard setup`. */
+export type EngineState = 'off' | 'not-installed' | 'stopped' | 'loading' | 'ready';
 
 export function isLocalUrl(url: string): boolean {
   const host = new URL(url).hostname;
   return host === '127.0.0.1' || host === 'localhost' || host === '::1' || host === '[::1]';
 }
 
+/** ACE-Step's main model (what `acestep-download` fetches): the engine can't start without it. */
+const MAIN_MODEL = ['acestep-v15-turbo', 'vae', 'Qwen3-Embedding-0.6B', 'acestep-5Hz-lm-1.7B'];
+/** A part counts once its weights are there (downloads only move them into place when they're complete). */
+const WEIGHTS = [
+  'model.safetensors',
+  'model.safetensors.index.json',
+  'diffusion_pytorch_model.safetensors',
+  'diffusion_pytorch_model.safetensors.index.json',
+];
+
+/** Whether `./storyboard setup` has installed the engine in engines/music. */
 export function engineInstalled(): boolean {
-  return fs.existsSync(path.join(ACESTEP_DIR, 'pyproject.toml')) && fs.existsSync(path.join(ACESTEP_DIR, 'checkpoints'));
+  return (
+    fs.existsSync(MUSIC_PYTHON) &&
+    MAIN_MODEL.every((part) => WEIGHTS.some((file) => fs.existsSync(path.join(MUSIC_DIR, 'checkpoints', part, file))))
+  );
 }
 
-/** The engine's API key: STORYBOARD_MUSIC_API_KEY, or a random key kept in ~/.config/storyboard. */
+/** The engine's API key: STORYBOARD_MUSIC_API_KEY, or a random key kept in .storyboard/keys. */
 export function musicApiKey(): string {
   if (process.env.STORYBOARD_MUSIC_API_KEY) return process.env.STORYBOARD_MUSIC_API_KEY;
   try {
@@ -84,7 +100,7 @@ export async function engineHealth(url = MUSIC_URL): Promise<EngineHealth | null
 }
 
 /**
- * Watches the ACE-Step music engine (started with `npm run music start`) and talks to its REST API.
+ * Watches the ACE-Step music engine (started with `./storyboard start`) and talks to its REST API.
  * Storyboard never starts or stops the engine itself; it only offers music tools while it is ready.
  */
 export class MusicEngine {
@@ -108,7 +124,9 @@ export class MusicEngine {
   private async probe() {
     this.health = await engineHealth();
     if (this.health) this.state = this.health.initialized ? 'ready' : 'loading';
-    else this.state = isLocalUrl(MUSIC_URL) && !engineInstalled() ? 'not-installed' : 'stopped';
+    else if (!isLocalUrl(MUSIC_URL)) this.state = 'stopped';
+    else if (readSettings()?.music === false) this.state = 'off';
+    else this.state = engineInstalled() ? 'stopped' : 'not-installed';
   }
 
   isReady(): boolean {
@@ -122,10 +140,12 @@ export class MusicEngine {
         return `Music engine: running (${this.health?.model ?? 'ACE-Step'}${this.health?.lmModel ? ` + ${this.health.lmModel}` : ''}). You can compose with generate_music.`;
       case 'loading':
         return 'Music engine: starting up (loading models) — music tools become available on the next message.';
+      case 'off':
+        return "Music generation: turned off by the user in setup — music tools are unavailable. Don't offer to compose music (the user can drop in their own track); only if they ask for generated music, tell them `./storyboard setup` in a terminal turns it on.";
       case 'not-installed':
-        return 'Music engine: not installed — music tools are unavailable. If music is wanted, point the user to "Music engine" in the README.';
+        return 'Music engine: not set up — music tools are unavailable. If the user wants Claude to compose music, tell them to run `./storyboard setup` in a terminal and turn on music generation.';
       default:
-        return 'Music engine: stopped — music tools are unavailable. If the user wants music, ask them to run `npm run music start` in a terminal, then send the request again.';
+        return 'Music engine: stopped — music tools are unavailable. If the user wants music, ask them to run `./storyboard start music` in a terminal, then send the request again.';
     }
   }
 
@@ -159,7 +179,7 @@ export class MusicEngine {
 
   /** Queue a generation; returns the engine's task id. */
   async submit(req: EngineRequest): Promise<string> {
-    if (!this.isReady()) throw new Error('The music engine is not running. Start it with `npm run music start`.');
+    if (!this.isReady()) throw new Error('The music engine is not running. Start it with `./storyboard start music`.');
     const fields: Record<string, string | number | boolean> = {
       task_type: req.task,
       prompt: req.prompt,

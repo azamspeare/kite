@@ -250,7 +250,7 @@ function nearest(points: number[], t: number): number {
   return points.reduce((best, x) => (Math.abs(x - t) < Math.abs(best - t) ? x : best), points[0] ?? t);
 }
 
-async function measureLoudness(file: string): Promise<string | null> {
+export async function measureLoudness(file: string): Promise<string | null> {
   try {
     const { stderr } = await execFileAsync(
       FFMPEG,
@@ -268,7 +268,7 @@ async function measureLoudness(file: string): Promise<string | null> {
   }
 }
 
-async function renderSpectrogram(file: string): Promise<Buffer | null> {
+export async function renderSpectrogram(file: string): Promise<Buffer | null> {
   const out = path.join(os.tmpdir(), `sb-spectrum-${randomUUID().slice(0, 8)}.jpg`);
   try {
     await execFileAsync(FFMPEG, [

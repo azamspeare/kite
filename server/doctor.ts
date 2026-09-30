@@ -1,17 +1,19 @@
-// Checks that everything Storyboard needs is in place:  npm run doctor
+// Checks that everything Storyboard needs is in place:  ./storyboard doctor  (or npm run doctor)
 // Exits with 1 while something required is missing, so agents can use it as a setup gate.
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { chromium } from 'playwright';
-import { BASE_URL, CLAUDE_BIN, FFMPEG, HOST, MUSIC_URL, PORT, PROJECTS_DIR, ROOT } from './config';
+import { BASE_URL, CLAUDE_BIN, FFMPEG, HOST, MUSIC_URL, PORT, PROJECTS_DIR, ROOT, SFX_URL } from './config';
 import { engineHealth, engineInstalled, isLocalUrl } from './music/engine';
+import { readSettings } from './settings';
+import { rail, Task } from './cli/ui';
+import { sfxEngineHealth, sfxEngineInstalled, sfxModelDownloaded } from './sound/engine';
 
 const execFileAsync = promisify(execFile);
 
-interface Check {
+export interface Check {
   /** fail: Storyboard can't work until it's fixed · warn: works, with a caveat · info: optional extras. */
   level: 'ok' | 'fail' | 'warn' | 'info';
   label: string;
@@ -20,18 +22,18 @@ interface Check {
 
 let alreadyRunning = false;
 
-function checkNode(): Check {
+export function checkNode(): Check {
   const [major, minor] = process.versions.node.split('.').map(Number);
   return major > 22 || (major === 22 && minor >= 12)
     ? { level: 'ok', label: `Node.js ${process.versions.node}` }
     : {
         level: 'fail',
         label: `Node.js ${process.versions.node} is too old`,
-        fix: 'Install Node.js 22.12 or newer (`nvm install` reads .nvmrc)',
+        fix: 'Install Node.js 22.12 or newer (nvm install reads .nvmrc)',
       };
 }
 
-async function checkFfmpeg(): Promise<Check> {
+export async function checkFfmpeg(): Promise<Check> {
   let version: string;
   try {
     const { stdout } = await execFileAsync(FFMPEG, ['-version']);
@@ -40,7 +42,7 @@ async function checkFfmpeg(): Promise<Check> {
     return {
       level: 'fail',
       label: `ffmpeg not found (${FFMPEG})`,
-      fix: 'macOS: `brew install ffmpeg` · Debian/Ubuntu: `sudo apt install ffmpeg` · or set FFMPEG_PATH',
+      fix: './storyboard setup installs it (or: brew install ffmpeg · sudo apt install ffmpeg)',
     };
   }
   // Renders are H.264 with AAC audio.
@@ -50,13 +52,15 @@ async function checkFfmpeg(): Promise<Check> {
     ? {
         level: 'fail',
         label: `ffmpeg ${version} has no ${missing.join(' or ')} encoder`,
-        fix: 'Install an ffmpeg build that includes libx264 (e.g. `brew install ffmpeg`)',
+        fix: 'Install an ffmpeg build that includes libx264 (e.g. brew install ffmpeg)',
       }
     : { level: 'ok', label: `ffmpeg ${version}` };
 }
 
-async function checkChromium(): Promise<Check> {
+export async function checkChromium(): Promise<Check> {
   try {
+    // Imported here: config.ts has set PLAYWRIGHT_BROWSERS_PATH (the app folder) by now.
+    const { chromium } = await import('playwright');
     const browser = await chromium.launch();
     const version = browser.version();
     await browser.close();
@@ -64,30 +68,29 @@ async function checkChromium(): Promise<Check> {
   } catch (e) {
     const message = (e as Error).message;
     if (/Executable doesn't exist/i.test(message)) {
-      return { level: 'fail', label: 'Headless Chromium is not installed', fix: 'npm run setup' };
+      return { level: 'fail', label: 'Headless Chromium is not installed', fix: './storyboard setup' };
     }
     return {
       level: 'fail',
       label: `Headless Chromium does not start: ${message.split('\n')[0]}`,
-      fix:
-        process.platform === 'linux'
-          ? 'Install its system libraries: `npm run setup -- --with-deps` (asks for sudo)'
-          : 'npm run setup',
+      fix: './storyboard setup',
     };
   }
 }
 
-async function checkClaude(): Promise<Check> {
+/** Claude Code's status: `installed` false when it isn't found, `loggedIn` null when the login couldn't be checked. */
+export async function claudeStatus(): Promise<{
+  installed: boolean;
+  version?: string;
+  loggedIn: boolean | null;
+  method?: string;
+}> {
   let version: string;
   try {
     const { stdout } = await execFileAsync(CLAUDE_BIN, ['--version'], { timeout: 15000 });
     version = stdout.match(/\d+\.\d+\.\d+\S*/)?.[0] ?? stdout.trim();
   } catch {
-    return {
-      level: 'fail',
-      label: `Claude Code not found (${CLAUDE_BIN})`,
-      fix: 'Install it from https://code.claude.com, then run `claude` and /login (or set CLAUDE_PATH)',
-    };
+    return { installed: false, loggedIn: false };
   }
   // The same environment the in-app agent gets (agents/claudeCode.ts): your login, not ANTHROPIC_API_KEY.
   const env = { ...process.env };
@@ -99,22 +102,33 @@ async function checkClaude(): Promise<Check> {
     // Exits with 1 when logged out, still printing the status.
     output = (e as { stdout?: string }).stdout ?? '';
   }
-  let status: { loggedIn?: boolean; authMethod?: string } | null = null;
   try {
-    status = JSON.parse(output);
+    const status = JSON.parse(output) as { loggedIn?: boolean; authMethod?: string };
+    return { installed: true, version, loggedIn: Boolean(status.loggedIn), method: status.authMethod };
   } catch {
-    status = null;
+    return { installed: true, version, loggedIn: null };
   }
-  if (!status) {
+}
+
+export async function checkClaude(): Promise<Check> {
+  const status = await claudeStatus();
+  if (!status.installed) {
+    return {
+      level: 'fail',
+      label: `Claude Code not found (${CLAUDE_BIN})`,
+      fix: './storyboard setup installs it (or see https://code.claude.com), then: claude auth login',
+    };
+  }
+  if (status.loggedIn === null) {
     return {
       level: 'warn',
-      label: `Claude Code ${version} (could not check the login)`,
-      fix: 'If the chat says "Not logged in", run `claude` in a terminal and use /login',
+      label: `Claude Code ${status.version} (could not check the login)`,
+      fix: 'If the chat says "Not logged in", run: claude auth login',
     };
   }
   return status.loggedIn
-    ? { level: 'ok', label: `Claude Code ${version}, logged in${status.authMethod ? ` (${status.authMethod})` : ''}` }
-    : { level: 'fail', label: `Claude Code ${version} is not logged in`, fix: 'Run `claude` in a terminal and use /login' };
+    ? { level: 'ok', label: `Claude Code ${status.version}, logged in${status.method ? ` (${status.method})` : ''}` }
+    : { level: 'fail', label: `Claude Code ${status.version} is not logged in`, fix: 'Run: claude auth login' };
 }
 
 async function checkPort(): Promise<Check> {
@@ -129,7 +143,11 @@ async function checkPort(): Promise<Check> {
     .catch(() => false);
   return alreadyRunning
     ? { level: 'info', label: `Storyboard is already running at ${BASE_URL}` }
-    : { level: 'warn', label: `Port ${PORT} is used by another program`, fix: 'Start on another port: `PORT=5299 npm run dev`' };
+    : {
+        level: 'warn',
+        label: `Port ${PORT} is used by another program`,
+        fix: 'Start on another port: PORT=5299 ./storyboard start',
+      };
 }
 
 function checkProjects(): Check {
@@ -143,26 +161,57 @@ function checkProjects(): Check {
   }
 }
 
-async function checkMusic(): Promise<Check> {
-  const health = await engineHealth();
-  if (health) {
-    return {
-      level: 'info',
-      label: `Music engine (optional): ${health.initialized ? 'running' : 'loading models'} at ${MUSIC_URL}`,
-    };
-  }
-  return isLocalUrl(MUSIC_URL) && !engineInstalled()
-    ? { level: 'info', label: 'Music engine (optional): not installed, see README → "Music engine"' }
-    : { level: 'info', label: 'Music engine (optional): stopped, start it with `npm run music start`' };
+/** An optional engine: off, on but not installed, stopped or running. */
+async function checkEngine(
+  name: string,
+  on: boolean | undefined,
+  url: string,
+  installed: boolean,
+  health: () => Promise<string | null>,
+  service: string,
+): Promise<Check> {
+  const state = await health();
+  if (state) return { level: 'info', label: `${name}: ${state} at ${url}` };
+  if (!isLocalUrl(url)) return { level: 'info', label: `${name}: not answering at ${url}` };
+  if (on === undefined)
+    return { level: 'info', label: `${name} (optional): not set up`, fix: './storyboard setup asks about it' };
+  if (!on) return { level: 'info', label: `${name} (optional): off`, fix: './storyboard setup turns it on' };
+  if (!installed)
+    return { level: 'warn', label: `${name}: on, but not installed`, fix: './storyboard setup finishes installing it' };
+  return { level: 'info', label: `${name}: installed, stopped`, fix: `./storyboard start ${service}` };
 }
 
-const MARKS = { ok: '✓', fail: '✗', warn: '!', info: '•' };
-const COLORS = { ok: 32, fail: 31, warn: 33, info: 90 };
-const useColor = process.stdout.isTTY && !process.env.NO_COLOR;
-const paint = (code: number, text: string) => (useColor ? `\x1b[${code}m${text}\x1b[0m` : text);
+const checkMusic = () =>
+  checkEngine(
+    'Music generation',
+    readSettings()?.music,
+    MUSIC_URL,
+    engineInstalled(),
+    async () => {
+      const h = await engineHealth();
+      return h ? (h.initialized ? 'running' : 'loading models') : null;
+    },
+    'music',
+  );
 
-async function main() {
-  console.log('\nStoryboard doctor\n');
+const checkSfx = () =>
+  checkEngine(
+    'Sound-effects generation',
+    readSettings()?.sfx,
+    SFX_URL,
+    sfxEngineInstalled() && sfxModelDownloaded(),
+    async () => {
+      const h = await sfxEngineHealth();
+      return h ? (h.ready ? 'running' : h.loading ? 'loading the model' : `not usable (${h.error ?? 'unknown'})`) : null;
+    },
+    'sfx',
+  );
+
+/** Print every check; resolves to the exit code (1 while something required is missing). */
+export async function doctor(): Promise<number> {
+  rail.open('Storyboard doctor');
+  rail.gap();
+  const checking = new Task('Checking');
   const checks = await Promise.all([
     checkNode(),
     checkFfmpeg(),
@@ -171,22 +220,18 @@ async function main() {
     checkPort(),
     checkProjects(),
     checkMusic(),
+    checkSfx(),
   ]);
+  checking.clear();
   for (const check of checks) {
-    console.log(`  ${paint(COLORS[check.level], MARKS[check.level])} ${check.label}`);
-    if (check.fix) console.log(`    ${paint(90, '→')} ${check.fix}`);
+    rail.mark(check.level, check.label);
+    if (check.fix) rail.hint(check.fix);
   }
   const failed = checks.filter((c) => c.level === 'fail').length;
   if (failed) {
-    console.log(`\n${failed} problem${failed === 1 ? '' : 's'} to fix, then run \`npm run doctor\` again.\n`);
-    process.exitCode = 1;
-  } else {
-    console.log(
-      alreadyRunning
-        ? `\nReady. Storyboard is running at ${BASE_URL}\n`
-        : `\nReady. Start it with \`npm run dev\`, then open ${BASE_URL}\n`,
-    );
+    rail.close(`${failed} problem${failed === 1 ? '' : 's'} to fix · ./storyboard setup fixes most of them`, 'fail');
+    return 1;
   }
+  rail.close(alreadyRunning ? `Ready · running at ${BASE_URL}` : 'Ready · start it with ./storyboard start');
+  return 0;
 }
-
-void main();

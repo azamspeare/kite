@@ -5,7 +5,7 @@ import { Filmstrip } from './components/Filmstrip';
 import { ArtDirectionModal, NewProjectModal } from './components/Modals';
 import { Present } from './components/Present';
 import { RenderView } from './components/RenderView';
-import { SidePanel, uploadMusicFile } from './components/SidePanel';
+import { SidePanel, uploadMusicFile, uploadSoundFiles } from './components/SidePanel';
 import { Stage } from './components/Stage';
 import { TopBar } from './components/TopBar';
 import { connectEvents } from './events';
@@ -57,6 +57,8 @@ export function App() {
   const presenting = useEditor((s) => s.presenting);
   const [loaded, setLoaded] = useState(false);
   const [dropping, setDropping] = useState(false);
+  /** Files dropped on the Sounds card become sound effects; anywhere else, the soundtrack. */
+  const [dropZone, setDropZone] = useState<'music' | 'sounds'>('music');
   const dragDepth = useRef(0);
 
   useEffect(() => {
@@ -110,6 +112,7 @@ export function App() {
   }, []);
 
   const hasFiles = (e: React.DragEvent) => e.dataTransfer.types.includes('Files');
+  const zoneOf = (e: React.DragEvent) => ((e.target as HTMLElement).closest?.('[data-drop="sounds"]') ? 'sounds' : 'music');
 
   return (
     <div
@@ -120,7 +123,10 @@ export function App() {
         setDropping(true);
       }}
       onDragOver={(e) => {
-        if (hasFiles(e) && project) e.preventDefault();
+        if (!hasFiles(e) || !project) return;
+        e.preventDefault();
+        const zone = zoneOf(e);
+        if (zone !== dropZone) setDropZone(zone);
       }}
       onDragLeave={(e) => {
         if (!hasFiles(e)) return;
@@ -132,8 +138,9 @@ export function App() {
         e.preventDefault();
         dragDepth.current = 0;
         setDropping(false);
-        const file = e.dataTransfer.files[0];
-        if (file) void uploadMusicFile(file);
+        const files = [...e.dataTransfer.files];
+        if (zoneOf(e) === 'sounds') void uploadSoundFiles(files);
+        else if (files[0]) void uploadMusicFile(files[0]);
       }}
     >
       <TopBar />
@@ -152,7 +159,11 @@ export function App() {
       {modal === 'art' && project && <ArtDirectionModal />}
       {modal === 'new-project' && <NewProjectModal />}
       {presenting && project && <Present />}
-      {dropping && <div className="drop-overlay">Drop an audio file to use it as the soundtrack</div>}
+      {dropping && (
+        <div className="drop-overlay">
+          {dropZone === 'sounds' ? 'Drop to add sound effects' : 'Drop an audio file to use it as the soundtrack'}
+        </div>
+      )}
       <Toasts />
     </div>
   );

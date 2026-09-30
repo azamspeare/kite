@@ -1,5 +1,5 @@
 /** Marks projects/CLAUDE.md as managed: Storyboard refreshes it on start. Delete the line to keep your own edits. */
-export const GUIDE_MARKER = '<!-- storyboard:managed-guide v2 -->';
+export const GUIDE_MARKER = '<!-- storyboard:managed-guide v3 -->';
 
 export function starterScene(name: string): string {
   const text = JSON.stringify(name);
@@ -49,7 +49,9 @@ This folder holds Storyboard video projects (a prompt-driven motion-design edito
 - \`components/\` — optional components shared by several scenes (import them relatively).
 - \`assets/\` — images/SVGs, referenced with \`asset('file.png')\`.
 - \`art-direction.md\` — the visual rules every scene follows. Read it before designing.
-- \`music/\`, \`music.json\` — the soundtrack and its beat analysis. \`renders/\` — exported videos. \`.storyboard/\` — internal (chats, undo); never touch.
+- \`music/\`, \`music.json\` — the soundtrack and its beat analysis.
+- \`sounds/\` — the sound-effect library: audio files the user adds, plus \`sounds.json\` (synth recipes and generated sounds, managed by the tools; don't edit it by hand).
+- \`renders/\` — exported videos. \`.storyboard/\` — internal (chats, undo, caches); never touch.
 
 ## The scene contract
 
@@ -99,6 +101,37 @@ export default function Anatomy({ t, duration, music }: SceneProps) {
 
 \`music\` exposes the soundtrack in **scene-local seconds**: \`bpm\`, \`beatLength\`, \`beats\`, \`downbeats\`, \`phrases\`, \`sections\`, \`accents\`, plus \`music.beat(n)\` / \`music.bar(n)\` / \`music.phrase(n)\` (nth grid point at or after the scene start; fractional n works), \`music.snap(t, 'beat'|'bar'|'phrase'|'half'|'quarter')\`, \`music.pulse(t, { grid, decay })\` (1 on each hit, decaying) and \`music.beatPhase(t)\`. Key important moments to the grid (\`music.bar(1)\`, \`music.beat(3)\`) instead of hard-coded seconds so they stay locked when cuts move. Without a track (\`music.hasTrack === false\`) the grid is a steady 120 BPM from t = 0.
 
+## Sound effects
+
+A scene plays sound effects by exporting \`sounds\`: cues in scene-local seconds. Name each moment once and use it in both the component and \`sounds\` (never copy numbers between them), so picture and sound stay locked when timing changes.
+
+\`\`\`tsx
+import { progress, type SceneProps, type SceneSounds, type SoundProps } from 'storyboard';
+
+// Every moment the animation and the sounds share, from one place.
+const moments = ({ music }: SoundProps) => ({ type: music.beat(2), key: music.beatLength / 4, send: music.bar(1) });
+
+export const sounds: SceneSounds = (props) => {
+  const m = moments(props);
+  return [
+    ...'8.8.8.8'.split('').map((_, i) => ({ at: m.type + i * m.key, sound: 'key', pitch: (i % 3) - 1, volume: 0.8 })),
+    { at: m.send, sound: 'enter' },
+    { at: m.send + 0.35, sound: 'whoosh', align: 'peak' },
+  ];
+};
+
+export default function Request(props: SceneProps) {
+  const m = moments(props);
+  const rise = progress(props.t, m.send, m.send + 0.7);
+  // …
+}
+\`\`\`
+
+- Cue fields: \`at\` (scene seconds; negative starts before the cut), \`sound\` (a name from the library), \`volume\` (1 = as made), \`pitch\` (semitones; also changes the length), \`pan\` (−1 … 1), \`align\` (\`'start'\`, or \`'peak'\` to land the sound's loudest moment on \`at\`, for whooshes, risers and swells) and \`duration\` (cut it short).
+- \`sounds\` is an array, or a function of the scene props without \`t\` (\`SoundProps\`: \`duration\`, \`music\`, \`scene\`, …). Keep it pure, like the component.
+- The library (\`sounds/\`) holds synth sounds (\`create_sound\`: presets like click, keystroke, pop, blip, ping, whoosh, riser, impact, thud, sparkle), generated sounds (\`generate_sound\`, while the sound-effects engine runs) and audio files the user drops in, named by their file name without the extension.
+- The preview and renders mix every cue with the soundtrack (−1 dBFS limiter, fade at the very end). You can't hear it: \`check_audio\` reports how each cue cuts through the mix.
+
 ## Seams
 
 Scenes play back to back with hard cuts. When an object continues across a cut, the last frame of the earlier scene (t = duration) must be pixel-identical to the first frame (t = 0) of the next: same positions, sizes, colors, weights, shadows. \`check_seams\` measures it; 0 % means the cut is invisible. If a cut is meant to be a visible change, say so rather than chasing 0 %.
@@ -112,7 +145,9 @@ Scenes play back to back with hard cuts. When an object continues across a cut, 
 - \`check_seams\` — pixel-diff the cuts into and out of a scene (or all cuts).
 - \`get_project\`, \`get_music_context\` — structure, timing, file paths; tempo/beats/phrases in scene-local time.
 - \`set_scene_duration\`, \`create_scene\`, \`duplicate_scene\`, \`delete_scene\`, \`move_scene\`, \`rename_scene\` — timing and structure.
-- \`generate_music\`, \`wait_for_music\`, \`list_music_takes\`, \`describe_music_take\`, \`use_music_take\`, \`repaint_music\` — compose and choose the soundtrack with the local music model. Only listed while the music engine runs (\`npm run music start\`).
+- \`generate_music\`, \`wait_for_music\`, \`list_music_takes\`, \`describe_music_take\`, \`use_music_take\`, \`repaint_music\` — compose and choose the soundtrack with the local music model. Only listed while the music engine runs (\`./storyboard start\`).
+- \`list_sounds\`, \`describe_sound\`, \`create_sound\`, \`delete_sound\` — the sound-effect library; \`generate_sound\` makes sounds from a prompt while the sound-effects engine runs (\`./storyboard start\`).
+- \`check_audio\` — mix the soundtrack and every cue like the render and measure each cue against the mix; \`set_music_volume\` — balance the soundtrack against the effects.
 
 ## Craft
 

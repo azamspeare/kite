@@ -1,7 +1,25 @@
-import { CopyPlus, ExternalLink, FolderOpen, Loader2, Magnet, Music, RefreshCw, ScanLine, Trash2, Undo2, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import {
+  AudioLines,
+  ChevronDown,
+  CopyPlus,
+  ExternalLink,
+  FolderOpen,
+  Loader2,
+  Magnet,
+  Music,
+  Play,
+  Plus,
+  RefreshCw,
+  ScanLine,
+  Trash2,
+  Undo2,
+  X,
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { SceneState } from '../../shared/types';
 import { api } from '../api';
+import { previewAudio } from '../audio';
 import { chatKey, currentScene, refreshProject, selectScene, toast, toastError, totalDuration, useEditor } from '../store';
 import { Chat } from './Chat';
 import { FILE_MANAGER, revealFile } from './TopBar';
@@ -189,10 +207,13 @@ function ProjectToolbar() {
   );
 }
 
+const isAudioFile = (file: File) =>
+  file.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|flac|ogg|opus|aiff?|caf)$/i.test(file.name);
+
 export async function uploadMusicFile(file: File) {
   const project = useEditor.getState().project;
   if (!project) return;
-  if (!file.type.startsWith('audio/') && !/\.(mp3|wav|m4a|aac|flac|ogg|aiff?)$/i.test(file.name)) {
+  if (!isAudioFile(file)) {
     toast(`“${file.name}” doesn’t look like an audio file`, { tone: 'error' });
     return;
   }
@@ -396,6 +417,148 @@ function MusicCard() {
   );
 }
 
+/** Audio files dropped on (or picked in) the Sounds card join the project's sound-effect library. */
+export async function uploadSoundFiles(files: File[]) {
+  const project = useEditor.getState().project;
+  if (!project) return;
+  const audio = files.filter(isAudioFile);
+  if (audio.length < files.length) toast('Only audio files can be added as sounds', { tone: 'error' });
+  const added: string[] = [];
+  for (const file of audio) {
+    try {
+      added.push((await api.uploadSound(project.id, file)).name);
+    } catch (e) {
+      toastError(e);
+    }
+  }
+  if (!added.length) return;
+  await refreshProject().catch(() => undefined);
+  toast(`Added ${added.map((n) => `“${n}”`).join(', ')} to the sounds. Ask Claude to use ${added.length === 1 ? 'it' : 'them'}.`);
+}
+
+/** One summary row (sounds · cues · problems); the list opens as a popover so the chat keeps its room. */
+function SoundsCard() {
+  const project = useEditor((s) => s.project)!;
+  const report = useEditor((s) => s.soundCues);
+  const input = useRef<HTMLInputElement>(null);
+  const anchor = useRef<HTMLDivElement>(null);
+  const popover = useRef<HTMLDivElement>(null);
+  const [pop, setPop] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
+  const uses = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const cue of report.cues) map.set(cue.sound, (map.get(cue.sound) ?? 0) + 1);
+    return map;
+  }, [report]);
+  const names = new Set(project.sounds.map((s) => s.name));
+  const missing = [...uses.keys()].filter((name) => !names.has(name));
+  const problems = [...report.errors, ...missing.map((name) => `No sound called “${name}” (used by a cue)`)];
+
+  const toggle = () => {
+    if (pop || !anchor.current) {
+      setPop(null);
+      return;
+    }
+    const r = anchor.current.getBoundingClientRect();
+    setPop({ top: r.bottom + 6, left: r.left, width: r.width, maxHeight: Math.min(340, window.innerHeight - r.bottom - 18) });
+  };
+
+  useEffect(() => {
+    if (!pop) return;
+    const outside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (!popover.current?.contains(target) && !anchor.current?.contains(target)) setPop(null);
+    };
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && setPop(null);
+    const close = () => setPop(null);
+    document.addEventListener('mousedown', outside);
+    window.addEventListener('keydown', key);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', outside);
+      window.removeEventListener('keydown', key);
+      window.removeEventListener('resize', close);
+    };
+  }, [pop]);
+
+  return (
+    <div className="sounds-card" data-drop="sounds" ref={anchor}>
+      <div className="sounds-head">
+        <button className="sounds-toggle" onClick={toggle} aria-expanded={Boolean(pop)}>
+          <AudioLines size={15} />
+          <strong>Sound effects</strong>
+          <span className="dim">
+            {project.sounds.length
+              ? `${project.sounds.length} sound${project.sounds.length === 1 ? '' : 's'} · ${report.cues.length} cue${report.cues.length === 1 ? '' : 's'}`
+              : 'none yet'}
+          </span>
+          {problems.length > 0 && (
+            <span className="sounds-flag">
+              {problems.length} problem{problems.length === 1 ? '' : 's'}
+            </span>
+          )}
+          <ChevronDown size={14} className="sounds-chevron" />
+        </button>
+        <button className="icon-btn icon-sm" title="Add sound files" onClick={() => input.current?.click()}>
+          <Plus size={15} />
+        </button>
+        <input
+          ref={input}
+          type="file"
+          accept="audio/*"
+          multiple
+          hidden
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            e.target.value = '';
+            if (files.length) void uploadSoundFiles(files);
+          }}
+        />
+      </div>
+      {pop &&
+        createPortal(
+          <div
+            ref={popover}
+            className="sounds-pop"
+            data-drop="sounds"
+            style={{ top: pop.top, left: pop.left, width: pop.width, maxHeight: pop.maxHeight }}
+          >
+            {project.sounds.length === 0 ? (
+              <div className="dim sounds-empty">No sounds yet. Ask Claude for sound design, or drop audio files here.</div>
+            ) : (
+              <ul className="sounds-list">
+                {project.sounds.map((sound) => {
+                  const count = uses.get(sound.name) ?? 0;
+                  return (
+                    <li key={sound.name} title={sound.label}>
+                      <button
+                        className="icon-btn icon-sm"
+                        aria-label={`Play ${sound.name}`}
+                        onClick={() => void previewAudio.play(sound.url).catch(toastError)}
+                      >
+                        <Play size={12} fill="currentColor" />
+                      </button>
+                      <span className="sound-name">{sound.name}</span>
+                      <span className="dim">
+                        {sound.source} · {sound.duration.toFixed(2)}s · {count ? `${count}×` : 'unused'}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {problems.map((problem) => (
+              <div key={problem} className="sounds-problem">
+                {problem}
+              </div>
+            ))}
+            <div className="dim sounds-hint">Drop audio files on Sound effects to add them.</div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
 export function SidePanel() {
   const panel = useEditor((s) => s.panel);
   const project = useEditor((s) => s.project)!;
@@ -423,7 +586,12 @@ export function SidePanel() {
         )}
       </div>
       {panel === 'scene' && scene ? <SceneToolbar scene={scene} /> : <ProjectToolbar />}
-      {panel === 'project' && <MusicCard />}
+      {panel === 'project' && (
+        <div className="side-cards">
+          <MusicCard />
+          <SoundsCard />
+        </div>
+      )}
       {scopeKey && <Chat key={`${project.id}/${scopeKey}`} scopeKey={scopeKey} />}
     </aside>
   );

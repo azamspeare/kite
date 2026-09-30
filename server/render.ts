@@ -5,10 +5,11 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { RenderFile, RenderJob } from '../src/shared/types';
-import { captureOne, type Capturer } from './capture';
+import { captureOne, withTimeout, type Capturer } from './capture';
 import { FFMPEG } from './config';
 import type { Hub } from './hub';
 import type { ProjectStore } from './projects';
+import type { SoundService } from './sound/service';
 import { HttpError, slugify } from './util';
 
 interface JobState {
@@ -23,7 +24,7 @@ export interface RenderOptions {
   fps?: number;
 }
 
-/** Whole-video export: parallel headless pages → ordered frames → ffmpeg (H.264 + soundtrack). */
+/** Whole-video export: parallel headless pages → ordered frames → ffmpeg (H.264 + the mixed soundtrack and effects). */
 export class Renderer {
   private jobs = new Map<string, JobState>();
 
@@ -31,6 +32,7 @@ export class Renderer {
     private store: ProjectStore,
     private capturer: Capturer,
     private hub: Hub,
+    private sounds: SoundService,
   ) {}
 
   jobsFor(projectId: string): RenderJob[] {
@@ -132,6 +134,24 @@ export class Renderer {
     );
     const closePages = () => Promise.all(pages.map((p) => p.context.close().catch(() => undefined)));
 
+    // Music and sound cues, mixed exactly as check_audio hears them.
+    const audioFile = this.store.internalDir(job.projectId, 'tmp', `${job.id}.wav`);
+    let hasAudio = false;
+    try {
+      const report = await withTimeout(
+        pages[0].page.evaluate(() => window.__sb!.sounds()),
+        60000,
+        'Collecting the sound cues timed out',
+      );
+      const mixed = await this.sounds.renderMix(job.projectId, report, audioFile);
+      hasAudio = mixed.written;
+      if (mixed.warnings.length) this.update(state, { warnings: mixed.warnings });
+    } catch (e) {
+      await closePages();
+      throw e;
+    }
+    const removeAudio = () => fs.rm(audioFile, { force: true }).catch(() => undefined);
+
     const args = [
       '-y',
       '-hide_banner',
@@ -146,11 +166,9 @@ export class Renderer {
       '-i',
       '-',
     ];
-    const music = project.music;
-    const musicFile = music ? path.join(project.dir, 'music', music.file) : null;
-    if (music && musicFile) args.push('-ss', String(music.start), '-i', musicFile);
+    if (hasAudio) args.push('-i', audioFile);
     args.push('-map', '0:v');
-    if (musicFile) args.push('-map', '1:a');
+    if (hasAudio) args.push('-map', '1:a');
     args.push(
       '-vf',
       // accurate_rnd + full_chroma_int keep neutral greys neutral through the JPEG→BT.709 conversion.
@@ -167,10 +185,8 @@ export class Renderer {
       '-movflags',
       '+faststart',
     );
-    if (music && musicFile) {
-      const fadeStart = Math.max(0, total - 0.6);
-      args.push('-c:a', 'aac', '-b:a', '192k', '-af', `volume=${music.volume},afade=t=out:st=${fadeStart}:d=0.6`);
-    }
+    // The mix already carries the volume, the −1 dBFS limiter and the end fade.
+    if (hasAudio) args.push('-c:a', 'aac', '-b:a', '192k');
     args.push('-t', total.toFixed(3), job.output!);
 
     const ffmpeg = spawn(FFMPEG, args, { stdio: ['pipe', 'ignore', 'pipe'] });
@@ -186,6 +202,7 @@ export class Renderer {
       state.cancelled = true;
       ffmpeg.kill('SIGKILL');
       void closePages();
+      void removeAudio();
       void fs.rm(job.output!, { force: true });
       this.update(state, { status: 'cancelled', finishedAt: Date.now() });
     };
@@ -249,11 +266,13 @@ export class Renderer {
     if (state.cancelled) return;
     if (failure) {
       ffmpeg.kill('SIGKILL');
+      await removeAudio();
       await fs.rm(job.output!, { force: true });
       throw failure;
     }
     this.update(state, { status: 'encoding', framesDone: frameCount });
     const code = await ffmpegDone;
+    await removeAudio();
     if (code !== 0)
       throw new Error(`ffmpeg failed: ${ffmpegError.trim().split('\n').slice(-3).join(' ') || `exit code ${code}`}`);
     this.update(state, { status: 'done', finishedAt: Date.now(), outputUrl: `/@fs${job.output}` });

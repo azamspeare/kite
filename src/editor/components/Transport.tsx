@@ -1,6 +1,6 @@
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { ProjectState } from '../../shared/types';
+import type { ProjectState, ResolvedCue } from '../../shared/types';
 import { currentScene, previewDuration, setMode, setPlaying, useEditor, userSeek } from '../store';
 import { Segmented } from './ui';
 
@@ -9,17 +9,20 @@ interface Markers {
   phrases: number[];
   cuts: { t: number; name: string }[];
   wave: string | null;
+  /** Sound cues, at the moment each is keyed to. */
+  sounds: { t: number; label: string }[];
 }
 
 const TICK_STEPS = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120];
 
-function useMarkers(project: ProjectState, windowStart: number, duration: number, whole: boolean): Markers {
+function useMarkers(project: ProjectState, windowStart: number, duration: number, whole: boolean, cues: ResolvedCue[]): Markers {
   return useMemo(() => {
     const a = project.musicAnalysis;
     const offset = (project.music?.start ?? 0) + windowStart;
     const inWindow = (t: number) => t >= -1e-6 && t <= duration + 1e-6;
     const cuts = whole ? project.scenes.slice(1).map((s) => ({ t: s.start, name: s.name })) : [];
-    if (!a || !project.music) return { beats: [], phrases: [], cuts, wave: null };
+    const sounds = cues.map((c) => ({ t: c.t - windowStart, label: c.sound })).filter((c) => inWindow(c.t));
+    if (!a || !project.music) return { beats: [], phrases: [], cuts, wave: null, sounds };
     const downs = new Set(a.downbeats.map((d) => Math.round(d * 1000)));
     const beats = a.beats.map((b) => ({ t: b - offset, down: downs.has(Math.round(b * 1000)) })).filter((b) => inWindow(b.t));
     const phrases = a.phrases.map((p) => p - offset).filter(inWindow);
@@ -36,8 +39,8 @@ function useMarkers(project: ProjectState, windowStart: number, duration: number
       bottom.push(`${i},${50 + h}`);
     }
     const wave = `M${top.join(' L')} L${bottom.reverse().join(' L')} Z`;
-    return { beats, phrases, cuts, wave };
-  }, [project, windowStart, duration, whole]);
+    return { beats, phrases, cuts, wave, sounds };
+  }, [project, windowStart, duration, whole, cues]);
 }
 
 function formatTick(t: number, step: number): string {
@@ -70,6 +73,15 @@ function Scrubber(props: { duration: number; markers: Markers }) {
   const ticks: number[] = [];
   for (let t = 0; t <= duration + 1e-6; t += step) ticks.push(Number(t.toFixed(3)));
   const showBeats = markers.beats.length > 0 && width / Math.max(1, markers.beats.length) > 3;
+  // Sounds within a few pixels of the pointer, named in the hover label.
+  const near =
+    hover === null
+      ? []
+      : [
+          ...new Set(
+            markers.sounds.filter((m) => (Math.abs(m.t - hover) / Math.max(duration, 1e-3)) * width < 5).map((m) => m.label),
+          ),
+        ];
 
   return (
     <div
@@ -109,10 +121,17 @@ function Scrubber(props: { duration: number; markers: Markers }) {
           <span key={c.t} className="cut" style={{ left: pct(c.t) }} title={`${c.name} starts at ${c.t.toFixed(2)}s`} />
         ))}
       </div>
+      <div className="scrub-sounds" aria-hidden>
+        {markers.sounds.map((m, i) => (
+          <span key={i} style={{ left: pct(m.t) }} />
+        ))}
+      </div>
       <div className="scrub-handle" style={{ left: pct(time) }} />
       {hover !== null && (
         <div className="scrub-hover" style={{ left: pct(hover) }}>
-          <span>{hover.toFixed(2)}s</span>
+          <span>
+            {hover.toFixed(2)}s{near.length > 0 && ` · ${near.slice(0, 3).join(', ')}${near.length > 3 ? '…' : ''}`}
+          </span>
         </div>
       )}
       <div className="scrub-ticks" aria-hidden>
@@ -134,7 +153,8 @@ export function Transport() {
   const muted = useEditor((s) => s.muted);
   const scene = useEditor((s) => currentScene(s));
   const duration = useEditor((s) => previewDuration(s));
-  const markers = useMarkers(project, mode === 'scene' ? (scene?.start ?? 0) : 0, duration, mode === 'whole');
+  const cues = useEditor((s) => s.soundCues.cues);
+  const markers = useMarkers(project, mode === 'scene' ? (scene?.start ?? 0) : 0, duration, mode === 'whole', cues);
 
   return (
     <div className="transport">
@@ -160,7 +180,7 @@ export function Transport() {
         <span className="dim"> / {duration.toFixed(2)}s</span>
       </div>
       <Scrubber duration={duration} markers={markers} />
-      {project.musicUrl && (
+      {(project.musicUrl || cues.length > 0) && (
         <button className="icon-btn" onClick={() => useEditor.setState({ muted: !muted })} title={muted ? 'Unmute' : 'Mute'}>
           {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
         </button>

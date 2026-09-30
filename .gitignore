@@ -10,6 +10,13 @@ projects/*
 projects/*/.storyboard/
 projects/*/renders/
 
+# What ./storyboard setup installs: tools, settings, logs (.storyboard) and the optional engines
+/.storyboard/
+/engines/music/
+/engines/sfx/.venv/
+/engines/sfx/models/
+/engines/sfx/.cache/
+
 # Secrets and local environment
 .env
 .env.*

@@ -29,7 +29,7 @@ export async function createVite(httpServer: Server): Promise<ViteDevServer> {
       middlewareMode: true,
       hmr: { server: httpServer },
       fs: { allow: [ROOT, PROJECTS_DIR] },
-      watch: { ignored: ['**/.storyboard/**', '**/renders/**', '**/music/**'] },
+      watch: { ignored: ['**/.storyboard/**', '**/renders/**', '**/music/**', '**/sounds/**'] },
     },
     resolve: {
       alias: { storyboard: path.join(ROOT, 'src/runtime/index.ts') },

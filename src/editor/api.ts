@@ -50,7 +50,8 @@ export const api = {
   projects: () => request<ProjectSummary[]>('GET', '/api/projects'),
   createProject: (input: { name: string; width: number; height: number; fps: number }) =>
     request<ProjectState>('POST', '/api/projects', input),
-  project: (id: string) => request<ProjectState>('GET', p(id)),
+  // `sounds` is missing when an older server answers (until it's restarted).
+  project: (id: string) => request<ProjectState>('GET', p(id)).then((project) => ({ ...project, sounds: project.sounds ?? [] })),
   updateProject: (id: string, patch: { name?: string; width?: number; height?: number; fps?: number }) =>
     request<ProjectState>('PATCH', p(id), patch),
   setArtDirection: (id: string, text: string) => request('PUT', `${p(id)}/art-direction`, { text }),
@@ -71,6 +72,16 @@ export const api = {
       body: file,
     });
     if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'Upload failed');
+  },
+  async uploadSound(id: string, file: File): Promise<{ name: string }> {
+    const res = await fetch(`${p(id)}/sounds`, {
+      method: 'POST',
+      headers: { 'x-filename': encodeURIComponent(file.name), 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    });
+    const body = (await res.json().catch(() => ({}))) as { name?: string; error?: string };
+    if (!res.ok || !body.name) throw new Error(body.error ?? 'Upload failed');
+    return { name: body.name };
   },
   analyzeMusic: (id: string) => request('POST', `${p(id)}/music/analyze`),
   updateMusic: (id: string, patch: { start?: number; volume?: number }) => request('PATCH', `${p(id)}/music`, patch),

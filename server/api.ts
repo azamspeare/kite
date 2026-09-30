@@ -15,9 +15,11 @@ import { snapCuts, type SnapGrid } from './musicContext';
 import type { ProjectStore } from './projects';
 import type { Renderer } from './render';
 import type { SeamService } from './seams';
+import type { SoundLibrary } from './sound/library';
 import { HttpError, assertId } from './util';
 
 const MAX_AUDIO_BYTES = 200 * 1024 * 1024;
+const MAX_SOUND_BYTES = 50 * 1024 * 1024;
 
 export interface ApiDeps {
   store: ProjectStore;
@@ -30,9 +32,10 @@ export interface ApiDeps {
   diagnose: (file: string) => Promise<string | null>;
   library: MusicLibrary;
   music: MusicService;
+  soundLibrary: SoundLibrary;
 }
 
-export function createApi({ store, hub, seams, renderer, provider, chats, diagnose, library, music }: ApiDeps) {
+export function createApi({ store, hub, seams, renderer, provider, chats, diagnose, library, music, soundLibrary }: ApiDeps) {
   const app = new Hono().basePath('/api');
 
   app.onError((err, c) => {
@@ -181,6 +184,26 @@ export function createApi({ store, hub, seams, renderer, provider, chats, diagno
     const snapped = snapCuts(p, grid ?? 'bar');
     await store.setDurations(id, snapped.durations);
     return c.json({ before, ...snapped });
+  });
+
+  // Sound effects ---------------------------------------------------------------
+  app.get('/projects/:id/sounds/:name/audio', async (c) => {
+    const { file } = await soundLibrary.audioFile(c.req.param('id'), c.req.param('name'));
+    const data = await fs.readFile(file);
+    // The URL carries the sound's version, so it can be cached for good.
+    return c.body(new Uint8Array(data), 200, {
+      'Content-Type': 'audio/wav',
+      'Cache-Control': 'private, max-age=31536000, immutable',
+    });
+  });
+
+  app.post('/projects/:id/sounds', async (c) => {
+    const name = decodeURIComponent(c.req.header('x-filename') ?? 'sound.wav');
+    const data = Buffer.from(await c.req.arrayBuffer());
+    if (data.length === 0) throw new HttpError(400, 'The upload was empty');
+    if (data.length > MAX_SOUND_BYTES) throw new HttpError(413, 'Sound files are limited to 50 MB');
+    const sound = await soundLibrary.importFile(c.req.param('id'), name, data);
+    return c.json({ name: sound.name });
   });
 
   // Seams ---------------------------------------------------------------------

@@ -1,14 +1,15 @@
 import { Pause, Play, RotateCcw, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { previewAudio } from '../audio';
 import { totalDuration, useEditor } from '../store';
 import { FrameView, type FrameHandle } from './FrameView';
 
-/** Fullscreen playback of the whole video with its soundtrack. */
+/** Fullscreen playback of the whole video with its soundtrack and sound effects. */
 export function Present() {
   const project = useEditor((s) => s.project)!;
   const root = useRef<HTMLDivElement>(null);
   const frame = useRef<FrameHandle>(null);
-  const audio = useRef<HTMLAudioElement>(null);
+  const playingRef = useRef(false);
   const timeRef = useRef(0);
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -22,16 +23,25 @@ export function Present() {
     useEditor.setState({ presenting: false });
   }, []);
 
+  const startAudio = useCallback(() => {
+    void previewAudio.start({ project, cues: useEditor.getState().soundCues.cues, from: timeRef.current, until: total });
+  }, [project, total]);
+
   const jump = useCallback(
     (t: number) => {
       timeRef.current = Math.max(0, Math.min(total, t));
       setTime(timeRef.current);
       frame.current?.render(timeRef.current);
-      const a = audio.current;
-      if (a && project.musicUrl) a.currentTime = (project.music?.start ?? 0) + timeRef.current;
+      if (playingRef.current) startAudio();
     },
-    [total, project],
+    [total, startAudio],
   );
+
+  useEffect(() => {
+    // Presenting always plays the sound, even when the editor preview is muted.
+    previewAudio.setMuted(false);
+    return () => previewAudio.setMuted(useEditor.getState().muted);
+  }, []);
 
   useEffect(() => {
     void root.current?.requestFullscreen?.().catch(() => undefined);
@@ -50,23 +60,16 @@ export function Present() {
   }, [ready]);
 
   useEffect(() => {
-    const a = audio.current;
+    playingRef.current = playing;
     if (!playing) {
-      a?.pause();
+      previewAudio.stop();
       return;
     }
     if (timeRef.current >= total) jump(0);
-    const offset = project.music?.start ?? 0;
-    if (a && project.musicUrl) {
-      a.currentTime = offset + timeRef.current;
-      void a.play().catch(() => undefined);
-    }
-    let last = performance.now();
+    startAudio();
     let raf = 0;
-    const tick = (now: number) => {
-      let t =
-        a && project.musicUrl && !a.paused && a.readyState >= 2 ? a.currentTime - offset : timeRef.current + (now - last) / 1000;
-      last = now;
+    const tick = () => {
+      let t = previewAudio.now() ?? timeRef.current;
       if (t >= total) {
         t = total;
         setPlaying(false);
@@ -79,9 +82,9 @@ export function Present() {
     raf = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(raf);
-      a?.pause();
+      previewAudio.stop();
     };
-  }, [playing, total, project, jump]);
+  }, [playing, total, jump, startAudio]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -111,8 +114,14 @@ export function Present() {
 
   return (
     <div ref={root} className={`present ${controls ? '' : 'present-idle'}`} onMouseMove={poke}>
-      <FrameView ref={frame} projectId={project.id} mode="present" className="present-frame" onReady={() => setReady(true)} />
-      {project.musicUrl && <audio ref={audio} src={project.musicUrl} preload="auto" />}
+      <FrameView
+        ref={frame}
+        projectId={project.id}
+        mode="present"
+        className="present-frame"
+        onReady={() => setReady(true)}
+        onSounds={(soundCues) => useEditor.setState({ soundCues })}
+      />
       <div className="present-controls">
         <button className="present-btn" onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pause' : 'Play'}>
           {time >= total && !playing ? (

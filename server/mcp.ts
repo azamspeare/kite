@@ -14,6 +14,10 @@ import { describeSeam, type SeamService } from './seams';
 import type { MusicEngine } from './music/engine';
 import type { MusicLibrary } from './music/library';
 import type { MusicJob, MusicService } from './music/service';
+import type { SfxEngine } from './sound/engine';
+import type { LibrarySound, SoundLibrary } from './sound/library';
+import type { SoundService } from './sound/service';
+import { PRESETS, PRESET_NAMES } from './sound/synth';
 import { formatSeconds, round } from './util';
 
 export interface ToolServices {
@@ -23,6 +27,9 @@ export interface ToolServices {
   engine: MusicEngine;
   library: MusicLibrary;
   music: MusicService;
+  sfx: SfxEngine;
+  soundLibrary: SoundLibrary;
+  sounds: SoundService;
 }
 
 /** How long a music tool call waits for the engine before handing back a job id. */
@@ -74,7 +81,7 @@ const sceneArg = z
   .describe('Scene id — the file name of scenes/<id>.tsx. Optional in a scene chat, where it defaults to that scene.');
 
 export function createToolServer(services: ToolServices, scope: Scope): McpServer {
-  const { store, capturer, seams, engine, library, music } = services;
+  const { store, capturer, seams, engine, library, music, sfx, soundLibrary, sounds } = services;
   const server = new McpServer({ name: 'storyboard', version: '1.0.0' });
 
   async function project(id?: string): Promise<ProjectState> {
@@ -99,9 +106,9 @@ export function createToolServer(services: ToolServices, scope: Scope): McpServe
     }
   }
 
-  function assertStructural() {
+  function assertStructural(what = 'Adding, removing or reordering scenes') {
     if (scope.kind === 'scene') {
-      throw new ToolError('Adding, removing or reordering scenes happens in the Project chat, not in a scene chat.');
+      throw new ToolError(`${what} happens in the Project chat, not in a scene chat.`);
     }
   }
 
@@ -129,6 +136,14 @@ export function createToolServer(services: ToolServices, scope: Scope): McpServe
       `Project "${p.name}" (id ${p.id}) — ${p.width}×${p.height} @ ${p.fps} fps, ${p.scenes.length} scenes, ${formatSeconds(total)} total.`,
       `Folder: ${p.dir}`,
       musicSummary(p),
+      p.sounds.length
+        ? `Sound library (sounds/): ${p.sounds.length} sound${p.sounds.length === 1 ? '' : 's'} — ${p.sounds
+            .slice(0, 20)
+            .map((x) => x.name)
+            .join(
+              ', ',
+            )}${p.sounds.length > 20 ? ', …' : ''}. Scenes place them with a \`sounds\` export; check_audio shows the mix.`
+        : 'Sound library (sounds/): empty.',
       'Scenes (in order):',
       ...p.scenes.map(
         (s) =>
@@ -379,6 +394,221 @@ export function createToolServer(services: ToolServices, scope: Scope): McpServe
       );
     },
   );
+
+  // ---------------------------------------------------------------------------
+  // Sound effects
+
+  async function imageResult(p: ProjectState, body: string, image: Buffer | null, caption: string): Promise<ToolResult> {
+    if (!image) return text(body);
+    const url = await saveFrame(p, image, 'jpg');
+    return {
+      content: [
+        { type: 'text', text: `${body}\n[${FRAME_MARKER} ${url}]` },
+        { type: 'text', text: caption },
+        { type: 'image', data: image.toString('base64'), mimeType: 'image/jpeg' },
+      ],
+    };
+  }
+
+  function soundLines(list: LibrarySound[]): string {
+    return list.map((s) => sounds.describeSound(s)).join('\n\n');
+  }
+
+  const PLACE_HINT =
+    'Place sounds with a `sounds` export in the scene (e.g. `{ at: ENTER_AT, sound: "enter" }`, keyed to the same constants as the animation), then run check_audio.';
+
+  tool(
+    'list_sounds',
+    "The project's sound library — every sound a cue can name: synth sounds and generated sounds made with create_sound / generate_sound, plus audio files the user put in sounds/. Each comes measured (length, where its peak is, loudness, brightness and frequency range), with how many cues use it.",
+    { project: projectArg },
+    async (args) => {
+      const p = await project(args.project);
+      const [{ sounds: list, warnings }, usage] = await Promise.all([soundLibrary.list(p.id), sounds.usage(p.id)]);
+      if (list.length === 0) {
+        return text(
+          `The sound library is empty. Make sounds with create_sound${sfx.isReady() ? ' or generate_sound' : ''}, or ask the user for audio files (they go in sounds/).${warnings.length ? `\n${warnings.join('\n')}` : ''}`,
+        );
+      }
+      const body = list.map((s) => sounds.describeSound(s, usage.get(s.name) ?? [])).join('\n\n');
+      const unknown = [...usage.keys()].filter((name) => !list.some((s) => s.name === name));
+      return text(
+        [
+          `${list.length} sound${list.length === 1 ? '' : 's'}:`,
+          '',
+          body,
+          unknown.length ? `\nCues name sounds that don't exist: ${unknown.join(', ')}` : '',
+          warnings.length ? `\n${warnings.join('\n')}` : '',
+        ]
+          .filter((l) => l !== '')
+          .join('\n'),
+      );
+    },
+    true,
+  );
+
+  tool(
+    'describe_sound',
+    'Measure one sound in the library again: length, peak position (what align: "peak" lines up), attack, tail, loudness, brightness, which cues use it, and a spectrogram image.',
+    { project: projectArg, name: z.string().min(1) },
+    async (args) => {
+      const p = await project(args.project);
+      const described = await sounds.describe(p.id, args.name);
+      return imageResult(p, described.text, described.spectrogram, 'Spectrogram (time →, frequency ↑, brighter = louder):');
+    },
+    true,
+  );
+
+  const presetList = PRESET_NAMES.map((name) => `${name} (${PRESETS[name].description}; ${PRESETS[name].length.default} s)`).join(
+    ', ',
+  );
+
+  tool(
+    'create_sound',
+    `Synthesize a sound effect from a preset and keep it in the project's library under \`name\` (instant, and identical every time). Presets: ${presetList}. Settings: pitch in semitones; length in seconds; brightness 0–1 (filter/click/harmonics); weight 0–1 (low-end body); tail 0–1 (room/ring-out); motion −1…1 (stereo travel for whoosh/swish/riser/reverse); seed (small natural differences). With variants > 1 you get name-1 … name-N with different seeds (e.g. several keystrokes to alternate). Build a small consistent palette for the video and reuse it across scenes. You can't hear the result: judge it from the measurements, then check_audio.`,
+    {
+      project: projectArg,
+      name: z.string().describe('Lowercase letters, digits and dashes, e.g. "key" or "pin-drop"'),
+      preset: z.enum(PRESET_NAMES),
+      pitch: z.number().min(-24).max(24).optional(),
+      length: z.number().positive().optional().describe('Seconds (each preset has its own range)'),
+      brightness: z.number().min(0).max(1).optional(),
+      weight: z.number().min(0).max(1).optional(),
+      tail: z.number().min(0).max(1).optional(),
+      motion: z.number().min(-1).max(1).optional(),
+      seed: z.number().int().optional(),
+      variants: z.number().int().min(1).max(8).optional(),
+      replace: z
+        .boolean()
+        .optional()
+        .describe('Replace an existing sound of that name (project chat only; every cue using it changes)'),
+    },
+    async (args) => {
+      const p = await project(args.project);
+      if (args.replace && scope.kind === 'scene') {
+        throw new ToolError('A scene chat can only add new sounds (other scenes may use this one). Pick a new name.');
+      }
+      const made = await sounds.create(p.id, {
+        name: args.name,
+        preset: args.preset,
+        params: {
+          pitch: args.pitch,
+          length: args.length,
+          brightness: args.brightness,
+          weight: args.weight,
+          tail: args.tail,
+          motion: args.motion,
+          seed: args.seed,
+        },
+        variants: args.variants ?? 1,
+        replace: Boolean(args.replace),
+      });
+      return text(`${soundLines(made)}\n\n${PLACE_HINT}`);
+    },
+  );
+
+  tool(
+    'delete_sound',
+    'Remove a sound Claude made from the library (project chat only). Refused while cues still use it. Files the user put in sounds/ stay.',
+    { project: projectArg, name: z.string().min(1) },
+    async (args) => {
+      assertStructural('Removing sounds');
+      const p = await project(args.project);
+      const uses = (await sounds.usage(p.id)).get(args.name) ?? [];
+      if (uses.length) {
+        const byScene = new Map<string, number>();
+        for (const c of uses) byScene.set(c.sceneId, (byScene.get(c.sceneId) ?? 0) + 1);
+        throw new ToolError(
+          `"${args.name}" is still used by ${[...byScene].map(([id, n]) => `${n} cue${n === 1 ? '' : 's'} in scenes/${id}.tsx`).join(', ')}; remove those cues first.`,
+        );
+      }
+      await soundLibrary.remove(p.id, args.name);
+      return text(`Removed "${args.name}" from the library.`);
+    },
+  );
+
+  tool(
+    'check_audio',
+    "Mix the soundtrack and every sound cue exactly as the render will, and report what you can't hear yourself: loudness and limiting, and for each cue where it starts, its settings and how well it cuts through everything else playing at that moment (clear / audible / faint / masked, in dB), plus broken cues and missing sounds, and a spectrogram of the mix. With a scene, reports the cues sounding in that scene. Run it after placing or changing sounds.",
+    { project: projectArg, scene: sceneArg },
+    async (args) => {
+      const p = await project(args.project);
+      const target = args.scene ?? (scope.kind === 'scene' && scope.projectId === p.id ? scope.sceneId : undefined);
+      if (target) scene(p, target);
+      const checked = await sounds.check(p.id, target);
+      return imageResult(
+        p,
+        checked.text,
+        checked.spectrogram,
+        'Spectrogram of the mix (time →, frequency ↑, brighter = louder):',
+      );
+    },
+    true,
+  );
+
+  tool(
+    'set_music_volume',
+    "Set the soundtrack's volume (0–1, linear; 1 = as generated) to balance it against the sound effects (project chat only, undoable).",
+    { project: projectArg, volume: z.number().min(0).max(1) },
+    async (args) => {
+      assertStructural('Changing the soundtrack');
+      const p = await project(args.project);
+      if (!p.music) throw new ToolError('This project has no soundtrack.');
+      await store.updateMusic(p.id, { volume: args.volume });
+      return text(`The soundtrack now plays at volume ${args.volume.toFixed(2)} (was ${p.music.volume.toFixed(2)}).`);
+    },
+  );
+
+  if (sfx.isReady()) {
+    tool(
+      'generate_sound',
+      'Make a sound effect from a text prompt with the local sound model (Stable Audio Open) and keep it in the library — for realistic or specific sounds the synth presets can\'t make (foley, materials, nature, crowds, machines). Describe the sound itself, not the scene: source, material, action, character, length (e.g. "single mechanical keyboard key press, close-miked, dry"). Keep it isolated: no music. Each variation is kept as name-a, name-b, … (just name with one variation), trimmed and levelled, and comes back measured with a spectrogram; you can\'t hear them, so compare the measurements, pick one and delete_sound the rest if you like. Takes several seconds per request.',
+      {
+        project: projectArg,
+        name: z.string().describe('Lowercase letters, digits and dashes, e.g. "pin-drop"'),
+        prompt: z.string().min(3),
+        duration: z.number().min(0.2).max(20).optional().describe('Seconds (default 2)'),
+        variations: z.number().int().min(1).max(4).optional().describe('Default 2'),
+        seed: z.number().int().optional(),
+        replace: z.boolean().optional().describe('Replace an existing sound of that name (project chat only)'),
+      },
+      async (args) => {
+        const p = await project(args.project);
+        if (args.replace && scope.kind === 'scene') {
+          throw new ToolError('A scene chat can only add new sounds (other scenes may use this one). Pick a new name.');
+        }
+        const made = await sounds.generate(p.id, {
+          name: args.name,
+          prompt: args.prompt,
+          duration: args.duration ?? 2,
+          variations: args.variations ?? 2,
+          seed: args.seed,
+          replace: Boolean(args.replace),
+        });
+        const content: Content[] = [];
+        const urls: string[] = [];
+        for (const sound of made.sounds) {
+          const described = await sounds.describe(p.id, sound.name);
+          if (described.spectrogram) {
+            urls.push(await saveFrame(p, described.spectrogram, 'jpg'));
+            content.push(
+              { type: 'text', text: `Spectrogram of ${sound.name}:` },
+              { type: 'image', data: described.spectrogram.toString('base64'), mimeType: 'image/jpeg' },
+            );
+          }
+        }
+        const footer = urls.length ? `\n[${FRAME_MARKER} ${urls.join(' ')}]` : '';
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Generated in ${made.seconds.toFixed(1)} s:\n\n${soundLines(made.sounds)}\n\n${PLACE_HINT}${footer}`,
+            },
+            ...content,
+          ],
+        };
+      },
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Music — only offered while the engine is running, and not to scene chats.

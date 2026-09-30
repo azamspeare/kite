@@ -1,61 +1,54 @@
 import { useEffect, useRef, useState } from 'react';
+import { previewAudio } from '../audio';
 import { currentScene, previewDuration, seek, useEditor } from '../store';
 import { FrameView, type FrameHandle } from './FrameView';
 import { Transport } from './Transport';
 
-/** Keeps the soundtrack in sync with the playhead and advances time while playing. */
+/** Plays the soundtrack and the sound cues from the playhead, and advances time from the audio clock while playing. */
 function Playback() {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const musicUrl = useEditor((s) => s.project?.musicUrl ?? null);
+  const project = useEditor((s) => s.project);
+  const soundCues = useEditor((s) => s.soundCues);
   const volume = useEditor((s) => s.project?.music?.volume ?? 1);
   const playing = useEditor((s) => s.playing);
   const muted = useEditor((s) => s.muted);
 
+  useEffect(() => previewAudio.setMuted(muted), [muted]);
+  useEffect(() => previewAudio.setMusicVolume(volume), [volume]);
   useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume;
-  }, [volume]);
+    if (project) previewAudio.preload(project, soundCues.cues);
+  }, [project, soundCues]);
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!playing) {
-      audio?.pause();
-      return;
-    }
+    if (!playing) return;
     const get = useEditor.getState;
-    /** Track time at playhead 0 of whatever is being previewed. */
-    const offset = () => {
+    /** Video time at playhead 0 of whatever is being previewed. */
+    const origin = () => {
       const s = get();
-      const start = s.project?.music?.start ?? 0;
-      return s.mode === 'scene' ? start + (currentScene(s)?.start ?? 0) : start;
+      return s.mode === 'scene' ? (currentScene(s)?.start ?? 0) : 0;
     };
-    const syncAudio = () => {
-      if (!audio || !get().project?.musicUrl) return;
-      const target = offset() + get().time;
-      if (target < 0 || (audio.duration && target >= audio.duration)) {
-        audio.pause();
-        return;
-      }
-      if (Math.abs(audio.currentTime - target) > 0.03) audio.currentTime = target;
-      void audio.play().catch(() => undefined);
+    const restart = () => {
+      const s = get();
+      if (!s.project) return;
+      const from = origin();
+      void previewAudio.start({
+        project: s.project,
+        cues: s.soundCues.cues,
+        from: from + s.time,
+        until: from + previewDuration(s),
+      });
     };
-    syncAudio();
+    restart();
 
-    let last = performance.now();
     let raf = 0;
-    const tick = (now: number) => {
+    const tick = () => {
       const s = get();
       const duration = previewDuration(s);
-      let t: number;
-      if (audio && s.project?.musicUrl && !audio.paused && !audio.ended && audio.readyState >= 2) {
-        t = audio.currentTime - offset();
-      } else {
-        t = s.time + (now - last) / 1000;
-      }
-      last = now;
+      const heard = previewAudio.now();
+      const t = heard === null ? s.time : heard - origin();
       if (t >= duration) {
         if (s.mode === 'scene' && s.loop) {
           seek(0);
-          syncAudio();
+          restart();
         } else {
           seek(duration);
           useEditor.setState({ playing: false });
@@ -68,21 +61,18 @@ function Playback() {
     };
     raf = requestAnimationFrame(tick);
 
-    // Re-sync the audio when the user scrubs, switches mode, or picks another scene in scene mode.
+    // Start over from the new position when the user scrubs, switches mode, or picks another scene in scene mode.
     const unsubscribe = useEditor.subscribe((s, prev) => {
-      if (s.seekNonce !== prev.seekNonce || s.mode !== prev.mode || (s.mode === 'scene' && s.sceneId !== prev.sceneId)) {
-        last = performance.now();
-        syncAudio();
-      }
+      if (s.seekNonce !== prev.seekNonce || s.mode !== prev.mode || (s.mode === 'scene' && s.sceneId !== prev.sceneId)) restart();
     });
     return () => {
       cancelAnimationFrame(raf);
       unsubscribe();
-      audio?.pause();
+      previewAudio.stop();
     };
   }, [playing]);
 
-  return musicUrl ? <audio ref={audioRef} src={musicUrl} preload="auto" muted={muted} /> : null;
+  return null;
 }
 
 function StageHeader() {
@@ -162,6 +152,7 @@ export function Stage() {
             className={`frame ${mode === 'whole' ? '' : 'frame-hidden'}`}
             onReady={renderCurrent}
             onErrors={(e) => mode === 'whole' && setErrors(e)}
+            onSounds={(soundCues) => useEditor.setState({ soundCues })}
           />
         </div>
         {errors.length > 0 && <div className="stage-error">{errors[0].split('\n')[0]}</div>}

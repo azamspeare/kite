@@ -1,5 +1,14 @@
 import { create } from 'zustand';
-import type { ChatMessage, ProjectState, ProjectSummary, RenderFile, RenderJob, SceneState, SeamResult } from '../shared/types';
+import type {
+  ChatMessage,
+  ProjectState,
+  ProjectSummary,
+  RenderFile,
+  RenderJob,
+  SceneState,
+  SeamResult,
+  SoundReport,
+} from '../shared/types';
 import { api, type Info } from './api';
 
 export type View = 'scenes' | 'render';
@@ -38,6 +47,8 @@ interface EditorState {
   renders: { jobs: RenderJob[]; files: RenderFile[] };
   musicStatus: 'idle' | 'analyzing' | 'ready' | 'error';
   musicError: string | null;
+  /** Every scene's sound cues, as the whole-video frame last reported them. */
+  soundCues: SoundReport;
   presenting: boolean;
   modal: null | 'art' | 'new-project';
   effort: string;
@@ -64,6 +75,7 @@ export const useEditor = create<EditorState>(() => ({
   renders: { jobs: [], files: [] },
   musicStatus: 'idle',
   musicError: null,
+  soundCues: { cues: [], errors: [] },
   presenting: false,
   modal: null,
   effort: localStorage.getItem('sb:effort') ?? 'medium',
@@ -144,6 +156,7 @@ export async function openProject(id: string, sceneId?: string | null) {
     renders: { jobs: [], files: [] },
     musicStatus: project.music ? (project.musicAnalysis ? 'ready' : 'analyzing') : 'idle',
     musicError: null,
+    soundCues: { cues: [], errors: [] },
   });
   localStorage.setItem('sb:project', id);
   writeHash();

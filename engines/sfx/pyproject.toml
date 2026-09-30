@@ -1,0 +1,24 @@
+# Storyboard's local sound-effects engine: Stable Audio Open 1.0 (via diffusers) behind a small HTTP API.
+# `./storyboard setup` installs it with uv sync --locked --no-build: pinned wheels only, nothing is built.
+[project]
+name = "storyboard-sfx"
+version = "0.1.0"
+description = "Stable Audio Open sound effects for Storyboard"
+requires-python = "==3.12.*"
+dependencies = [
+  "torch==2.10.0",
+  "diffusers==0.37.1",
+  "transformers==4.57.6",
+  "tokenizers==0.22.2",
+  "safetensors==0.7.0",
+  "accelerate==1.12.0",
+  "huggingface-hub==0.36.0",
+  # CosineDPMSolverMultistepScheduler (Stable Audio's scheduler) needs it.
+  "torchsde==0.2.6",
+  "numpy==2.3.5",
+  "soundfile==0.13.1",
+]
+
+[tool.uv]
+# Not a package: nothing of ours is built or installed, only the pinned dependencies.
+package = false
