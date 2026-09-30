@@ -24,6 +24,8 @@ cd caleb-video-editor
 ./storyboard start
 ```
 
+![./storyboard setup in a terminal: it checks the basics, asks about music and sound-effect generation, installs everything with progress bars, then starts Storyboard](docs/setup.gif)
+
 Setup walks you through the rest (ffmpeg, your Claude Code login, and whether you want music and sound-effect generation) and installs everything inside this folder. Run it again any time to change your choices. It installs packages with `npm ci --ignore-scripts`, so no package's install script ever runs: don't use `npm install` here.
 
 ## Commands
