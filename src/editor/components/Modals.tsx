@@ -77,7 +77,7 @@ export function NewProjectModal() {
       const project = await api.createProject({ name: name.trim() || 'Untitled', width, height, fps });
       await loadProjects();
       await openProject(project.id);
-      useEditor.setState({ view: 'scenes', panel: 'project', mode: 'scene' });
+      useEditor.setState({ view: 'scenes', panel: 'project', rail: 'chat', mode: 'scene' });
       close();
     } catch (e) {
       toastError(e);

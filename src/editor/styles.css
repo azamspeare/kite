@@ -83,17 +83,19 @@ button:disabled {
 
 .app {
   display: grid;
-  grid-template-rows: 56px minmax(0, 1fr) 190px;
+  grid-template-rows: 56px minmax(0, 1fr);
   height: 100vh;
 }
 
-.app.app-render {
-  grid-template-rows: 56px minmax(0, 1fr);
-}
-
+/* The chat and the rail run the full height; the filmstrip sits under the stage. */
 .main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 460px;
+  /* The side column gives up some width on smaller windows so the stage keeps room for the rail. */
+  grid-template-columns: minmax(0, 1fr) clamp(400px, 34vw, 460px) 44px;
+  grid-template-rows: minmax(0, 1fr) 190px;
+  grid-template-areas:
+    'stage side rail'
+    'filmstrip side rail';
   min-height: 0;
 }
 
@@ -334,6 +336,7 @@ button:disabled {
 /* Stage ------------------------------------------------------------------- */
 
 .stage-col {
+  grid-area: stage;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -592,6 +595,7 @@ button:disabled {
 /* Side panel -------------------------------------------------------------- */
 
 .side {
+  grid-area: side;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -603,6 +607,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-height: 59px;
   padding: 14px 18px 12px;
   border-bottom: 1px solid var(--line);
 }
@@ -677,33 +682,151 @@ button:disabled {
   border-bottom: 1px solid var(--line);
 }
 
-/* Music card -------------------------------------------------------------- */
+/* Rail -------------------------------------------------------------------- */
 
-.music-card {
+.rail {
+  grid-area: rail;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin: 12px 18px 0;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fafafa;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+}
+
+.rail-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.rail-btn:hover {
+  background: #f1f1f3;
+  color: var(--text);
+}
+
+.rail-btn.active {
+  background: #e7e7ea;
+  color: var(--text);
+}
+
+.rail-badge {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
+.rail-working {
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  background: var(--panel);
+  color: var(--accent);
+}
+
+.rail-dot {
+  top: 4px;
+  right: 4px;
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+}
+
+.rail-dot.rail-error {
+  background: var(--danger);
+}
+
+.rail-count {
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  background: var(--warn);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Soundtrack and sound effects panels ------------------------------------- */
+
+.side-count {
+  margin-left: auto;
+  color: var(--muted);
   font-size: 13px;
-  text-align: left;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.audio-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 18px 18px;
+  font-size: 13px;
+}
+
+.audio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audio-hint,
+.audio-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.audio-empty {
+  font-size: 13.5px;
+}
+
+/* Sits at the bottom of the panel when there's room. */
+.audio-drop-hint {
+  margin-top: auto;
+  text-align: center;
 }
 
 .music-empty {
-  flex-direction: row;
+  display: flex;
   align-items: flex-start;
   gap: 12px;
+  padding: 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
   background: #fff;
-  border-style: dashed;
-  border-color: var(--line-strong);
+  font-size: 13px;
   line-height: 1.5;
+  text-align: left;
 }
 
 .music-empty:hover {
   border-color: #a1a1aa;
+}
+
+.music-empty svg {
+  flex: none;
+  margin-top: 2px;
 }
 
 .music-empty strong {
@@ -716,31 +839,48 @@ button:disabled {
   display: block;
 }
 
-.music-head {
+.track {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 10px;
 }
 
-.music-name {
+.track-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--text-2);
+  flex: none;
+}
+
+.track-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   flex: 1;
   min-width: 0;
-  font-weight: 560;
+}
+
+.track-text strong,
+.track-text .dim {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.music-stats {
-  color: var(--text-2);
-  line-height: 1.5;
+.track-text strong {
+  font-size: 14px;
+  font-weight: 560;
 }
 
 .music-overview {
   width: 100%;
-  height: 40px;
+  height: 72px;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #fff;
   border: 1px solid var(--line);
 }
@@ -759,30 +899,27 @@ button:disabled {
   vector-effect: non-scaling-stroke;
 }
 
-.music-controls {
-  display: flex;
-  gap: 18px;
+.audio-fields {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px 16px;
   color: var(--text-2);
 }
 
-.music-controls label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.music-controls input[type='number'] {
-  width: 70px;
-  height: 27px;
-  padding: 0 6px;
+.audio-fields input[type='number'] {
+  width: 76px;
+  height: 29px;
+  padding: 0 7px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 7px;
   background: #fff;
   font-variant-numeric: tabular-nums;
 }
 
-.music-controls input[type='range'] {
-  width: 90px;
+.audio-fields input[type='range'] {
+  width: 100%;
+  margin: 0;
   accent-color: #18181b;
 }
 
@@ -803,136 +940,51 @@ button:disabled {
   color: var(--danger);
 }
 
-/* The Project panel's cards scroll when the window is short, so the chat keeps its room. */
-.side-cards {
-  flex: 0 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--line);
-}
-
-/* Sounds card ------------------------------------------------------------- */
-
-.sounds-card {
-  flex-shrink: 0;
-  margin: 10px 18px 0;
-  padding: 7px 8px 7px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fafafa;
-  font-size: 13px;
-}
-
-.sounds-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.sounds-toggle {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  padding: 3px 0;
-  border: 0;
-  background: none;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.sounds-toggle strong {
-  font-weight: 560;
-}
-
-.sounds-toggle .dim {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sounds-chevron {
-  flex-shrink: 0;
-  margin-left: auto;
-  color: var(--muted);
-}
-
-.sounds-flag {
-  flex-shrink: 0;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: #fef3c7;
-  color: #92400e;
-  font-size: 11.5px;
-  font-weight: 560;
-}
-
-.sounds-pop {
-  position: fixed;
-  z-index: 60;
+.sound-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  overflow-y: auto;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: var(--shadow);
-  font-size: 13px;
-}
-
-.sounds-empty,
-.sounds-hint,
-.sounds-problem {
-  padding: 2px 4px;
-  line-height: 1.45;
-}
-
-.sounds-hint {
-  font-size: 12px;
-}
-
-.sounds-problem {
-  color: var(--warn);
-  font-size: 12px;
-}
-
-.sounds-list {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
+  margin: 0 -8px;
   padding: 0;
   list-style: none;
 }
 
-.sounds-list li {
-  display: flex;
+.sound-list li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 6px;
-  min-height: 28px;
-  padding: 0 4px;
-  border-radius: 6px;
+  column-gap: 8px;
+  padding: 5px 8px;
+  border-radius: 8px;
 }
 
-.sounds-list li:hover {
+.sound-list li:hover {
   background: #f4f4f5;
 }
 
-.sound-name {
-  flex: 1;
-  min-width: 0;
-  font-weight: 520;
+.sound-name,
+.sound-label {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.sounds-list .dim {
+.sound-name {
+  font-weight: 540;
+}
+
+.sound-meta,
+.sound-label {
+  color: var(--muted);
   font-size: 12px;
+}
+
+.sound-meta {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.sound-label {
+  grid-column: 2 / -1;
 }
 
 /* Chat -------------------------------------------------------------------- */
@@ -1232,7 +1284,7 @@ button:disabled {
 /* Filmstrip --------------------------------------------------------------- */
 
 .filmstrip {
-  grid-column: 1 / -1;
+  grid-area: filmstrip;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 14px 18px 8px;
@@ -1804,4 +1856,33 @@ button:disabled {
   font-size: 18px;
   font-weight: 600;
   pointer-events: none;
+}
+
+::-webkit-scrollbar {
+  width: 8px; /* scrollbar width */
+  height: 8px; /* horizontal scrollbar height */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* track background */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 100, 100, 0.5); /* thumb color */
+  border-radius: 10px; /* rounded ends */
+  border: 2px solid transparent; /* padding around thumb */
+  background-clip: content-box; /* ensures border doesn’t overlap thumb */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 100, 100, 0.7);
+}
+
+.scrollbar-hide {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Safari + Chrome */
 }

@@ -13,6 +13,8 @@ import { api, type Info } from './api';
 
 export type View = 'scenes' | 'render';
 export type PreviewMode = 'scene' | 'whole';
+/** What fills the right column, picked in the rail beside it. */
+export type RailItem = 'chat' | 'soundtrack' | 'sounds';
 
 export interface ChatState {
   messages: ChatMessage[];
@@ -33,7 +35,9 @@ interface EditorState {
   project: ProjectState | null;
   sceneId: string | null;
   view: View;
+  /** Which chat the Chat panel shows: the selected scene's or the whole project's. */
   panel: 'scene' | 'project';
+  rail: RailItem;
   mode: PreviewMode;
   playing: boolean;
   /** Playhead in the current mode's timebase: scene-local in scene mode, video time in whole mode. */
@@ -64,6 +68,7 @@ export const useEditor = create<EditorState>(() => ({
   sceneId: null,
   view: 'scenes',
   panel: 'scene',
+  rail: 'chat',
   mode: 'scene',
   playing: false,
   time: 0,

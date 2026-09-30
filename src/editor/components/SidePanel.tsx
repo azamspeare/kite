@@ -1,29 +1,33 @@
 import {
   AudioLines,
-  ChevronDown,
   CopyPlus,
   ExternalLink,
   FolderOpen,
   Loader2,
-  Magnet,
+  MessageSquare,
   Music,
-  Play,
-  Plus,
-  RefreshCw,
   ScanLine,
   Trash2,
   Undo2,
-  X,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { SceneState } from '../../shared/types';
 import { api } from '../api';
-import { previewAudio } from '../audio';
-import { chatKey, currentScene, refreshProject, selectScene, toast, toastError, totalDuration, useEditor } from '../store';
+import {
+  chatKey,
+  currentScene,
+  refreshProject,
+  selectScene,
+  toast,
+  toastError,
+  totalDuration,
+  useEditor,
+  type RailItem,
+} from '../store';
+import { SoundsPanel, SoundtrackPanel, useSoundProblems } from './AudioPanels';
 import { Chat } from './Chat';
 import { FILE_MANAGER, revealFile } from './TopBar';
-import { Segmented, formatClock } from './ui';
+import { Segmented } from './ui';
 
 function InlineInput(props: { initial: string; onDone: (value: string | null) => void; numeric?: boolean; className?: string }) {
   const done = useRef(false);
@@ -207,365 +211,86 @@ function ProjectToolbar() {
   );
 }
 
-const isAudioFile = (file: File) =>
-  file.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|flac|ogg|opus|aiff?|caf)$/i.test(file.name);
-
-export async function uploadMusicFile(file: File) {
-  const project = useEditor.getState().project;
-  if (!project) return;
-  if (!isAudioFile(file)) {
-    toast(`“${file.name}” doesn’t look like an audio file`, { tone: 'error' });
-    return;
-  }
-  useEditor.setState({ musicStatus: 'analyzing', panel: 'project' });
-  try {
-    await api.uploadMusic(project.id, file);
-    await refreshProject();
-  } catch (e) {
-    useEditor.setState({ musicStatus: 'error', musicError: (e as Error).message });
-    toastError(e);
-  }
-}
-
-function MusicOverview() {
+/** The right column's icon rail: Chat, Soundtrack, Sound effects. Badges show what's happening in the hidden panels. */
+function Rail() {
   const project = useEditor((s) => s.project)!;
-  const a = project.musicAnalysis!;
-  const start = project.music?.start ?? 0;
-  const total = totalDuration(project);
-  const n = 200;
-  const top: string[] = [];
-  const bottom: string[] = [];
-  for (let i = 0; i <= n; i++) {
-    const v = a.waveform[Math.min(a.waveform.length - 1, Math.floor((i / n) * a.waveform.length))] ?? 0;
-    top.push(`${i},${20 - 2 - v * 16}`);
-    bottom.push(`${i},${20 + 2 + v * 16}`);
-  }
-  const x = (t: number) => (t / a.duration) * n;
-  const setStart = async (e: React.MouseEvent<SVGSVGElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const t = ((e.clientX - rect.left) / rect.width) * a.duration;
-    const nearest = a.downbeats.reduce((best, d) => (Math.abs(d - t) < Math.abs(best - t) ? d : best), a.downbeats[0] ?? t);
-    try {
-      await api.updateMusic(project.id, { start: Math.max(0, nearest) });
-      await refreshProject();
-      toast(`The video now starts ${nearest.toFixed(2)}s into the track`);
-    } catch (err) {
-      toastError(err);
-    }
-  };
-  return (
-    <svg className="music-overview" viewBox={`0 0 ${n} 40`} preserveAspectRatio="none" onClick={setStart}>
-      <title>Click to start the video at the nearest bar</title>
-      <rect
-        className="window"
-        x={x(start)}
-        y={0}
-        width={Math.max(0.5, x(Math.min(a.duration, start + total)) - x(start))}
-        height={40}
-      />
-      <path d={`M${top.join(' L')} L${bottom.reverse().join(' L')} Z`} />
-      {a.sections.slice(1).map((s) => (
-        <line key={s.start} className="section" x1={x(s.start)} x2={x(s.start)} y1={0} y2={40} />
-      ))}
-    </svg>
-  );
-}
+  const rail = useEditor((s) => s.rail);
+  const busy = useEditor((s) => Object.entries(s.chats).some(([key, chat]) => chat.busy && key.startsWith(`${project.id}/`)));
+  const musicStatus = useEditor((s) => s.musicStatus);
+  const problems = useSoundProblems().length;
+  // A turn that finishes while another panel is open leaves a dot on Chat until it's opened.
+  const [unread, setUnread] = useState(false);
+  const wasBusy = useRef(busy);
+  useEffect(() => {
+    if (wasBusy.current && !busy && useEditor.getState().rail !== 'chat') setUnread(true);
+    wasBusy.current = busy;
+  }, [busy]);
+  useEffect(() => {
+    if (rail === 'chat') setUnread(false);
+  }, [rail]);
+  useEffect(() => setUnread(false), [project.id]);
 
-function MusicCard() {
-  const project = useEditor((s) => s.project)!;
-  const status = useEditor((s) => s.musicStatus);
-  const error = useEditor((s) => s.musicError);
-  const input = useRef<HTMLInputElement>(null);
-  const [grid, setGrid] = useState<'bar' | 'phrase' | 'beat'>('bar');
-  const a = project.musicAnalysis;
-
-  const picker = (
-    <input
-      ref={input}
-      type="file"
-      accept="audio/*"
-      hidden
-      onChange={(e) => {
-        const file = e.target.files?.[0];
-        if (file) void uploadMusicFile(file);
-        e.target.value = '';
-      }}
-    />
-  );
-
-  if (!project.music) {
+  const item = (id: RailItem, name: string, status: string | null, icon: ReactNode, badge: ReactNode = null) => {
+    const label = status ? `${name} · ${status}` : name;
     return (
-      <button className="music-card music-empty" onClick={() => input.current?.click()}>
-        <Music size={18} />
-        <span>
-          <strong>Add a soundtrack</strong>
-          <span className="dim">
-            Drop an audio file anywhere or click here. Beats, bars and phrases are detected so cuts and animations can lock to the
-            music.
-          </span>
-        </span>
-        {picker}
+      <button
+        role="tab"
+        aria-selected={rail === id}
+        aria-label={label}
+        title={label}
+        className={`rail-btn ${rail === id ? 'active' : ''}`}
+        data-drop={id === 'sounds' ? 'sounds' : undefined}
+        onClick={() => useEditor.setState({ rail: id })}
+      >
+        {icon}
+        {badge}
       </button>
     );
-  }
-
-  const snap = async () => {
-    try {
-      const result = await api.snap(project.id, grid);
-      await refreshProject();
-      toast(
-        `Snapped ${result.moved} cut${result.moved === 1 ? '' : 's'} to the ${grid} grid (max shift ${result.maxShift.toFixed(2)}s)`,
-        {
-          action: {
-            label: 'Undo',
-            run: () => void api.setDurations(project.id, result.before).then(refreshProject).catch(toastError),
-          },
-        },
-      );
-    } catch (e) {
-      toastError(e);
-    }
   };
+  const working = (
+    <span className="rail-badge rail-working">
+      <Loader2 size={11} className="spin" />
+    </span>
+  );
 
   return (
-    <div className="music-card">
-      <div className="music-head">
-        <Music size={15} />
-        <span className="music-name" title={project.music.file}>
-          {project.music.file}
-        </span>
-        <button className="icon-btn icon-sm" title="Re-analyze" onClick={() => api.analyzeMusic(project.id).catch(toastError)}>
-          <RefreshCw size={13} />
-        </button>
-        <button
-          className="icon-btn icon-sm"
-          title="Remove the soundtrack"
-          onClick={async () => {
-            if (!confirm('Remove the soundtrack from this project?')) return;
-            await api.removeMusic(project.id).catch(toastError);
-            await refreshProject();
-          }}
-        >
-          <X size={14} />
-        </button>
-        {picker}
-      </div>
-      {status === 'error' ? (
-        <div className="music-status error">{error ?? 'Analysis failed'}</div>
-      ) : !a || status === 'analyzing' ? (
-        <div className="music-status">
-          <Loader2 size={14} className="spin" /> Detecting beats, bars and phrases…
-        </div>
-      ) : (
-        <>
-          <div className="music-stats">
-            <strong>{a.bpm.toFixed(1)} BPM</strong> · {a.beatsPerBar}/4 · {formatClock(a.duration)} ·{' '}
-            {a.sections.map((s) => s.label).join(' → ')}
-          </div>
-          <MusicOverview />
-          <div className="music-controls">
-            <label>
-              Starts at
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                defaultValue={project.music.start.toFixed(2)}
-                key={project.music.start}
-                onBlur={async (e) => {
-                  const start = Number(e.currentTarget.value);
-                  if (!Number.isFinite(start) || start === project.music?.start) return;
-                  await api.updateMusic(project.id, { start }).catch(toastError);
-                  await refreshProject();
-                }}
-              />
-              s
-            </label>
-            <label>
-              Volume
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                defaultValue={project.music.volume}
-                onChange={(e) => {
-                  const volume = Number(e.currentTarget.value);
-                  void api.updateMusic(project.id, { volume }).then(refreshProject).catch(toastError);
-                }}
-              />
-            </label>
-          </div>
-          <div className="music-actions">
-            <Segmented
-              size="sm"
-              value={grid}
-              options={[
-                ['beat', 'Beats'],
-                ['bar', 'Bars'],
-                ['phrase', 'Phrases'],
-              ]}
-              onChange={setGrid}
-            />
-            <button className="btn btn-sm" onClick={snap} title="Move every cut to the nearest grid point">
-              <Magnet size={14} /> Snap cuts
-            </button>
-          </div>
-        </>
+    <nav className="rail" role="tablist" aria-orientation="vertical" aria-label="Panels">
+      {item(
+        'chat',
+        'Chat',
+        busy ? 'Claude is working' : unread ? 'Claude replied' : null,
+        <MessageSquare size={18} />,
+        busy ? working : unread ? <span className="rail-badge rail-dot" /> : null,
       )}
-    </div>
+      {item(
+        'soundtrack',
+        'Soundtrack',
+        musicStatus === 'analyzing' ? 'analyzing' : musicStatus === 'error' ? 'analysis failed' : null,
+        <Music size={18} />,
+        musicStatus === 'analyzing' ? (
+          working
+        ) : musicStatus === 'error' ? (
+          <span className="rail-badge rail-dot rail-error" />
+        ) : null,
+      )}
+      {item(
+        'sounds',
+        'Sound effects',
+        problems ? `${problems} problem${problems === 1 ? '' : 's'}` : null,
+        <AudioLines size={18} />,
+        problems ? <span className="rail-badge rail-count">{problems}</span> : null,
+      )}
+    </nav>
   );
 }
 
-/** Audio files dropped on (or picked in) the Sounds card join the project's sound-effect library. */
-export async function uploadSoundFiles(files: File[]) {
-  const project = useEditor.getState().project;
-  if (!project) return;
-  const audio = files.filter(isAudioFile);
-  if (audio.length < files.length) toast('Only audio files can be added as sounds', { tone: 'error' });
-  const added: string[] = [];
-  for (const file of audio) {
-    try {
-      added.push((await api.uploadSound(project.id, file)).name);
-    } catch (e) {
-      toastError(e);
-    }
-  }
-  if (!added.length) return;
-  await refreshProject().catch(() => undefined);
-  toast(`Added ${added.map((n) => `“${n}”`).join(', ')} to the sounds. Ask Claude to use ${added.length === 1 ? 'it' : 'them'}.`);
-}
-
-/** One summary row (sounds · cues · problems); the list opens as a popover so the chat keeps its room. */
-function SoundsCard() {
-  const project = useEditor((s) => s.project)!;
-  const report = useEditor((s) => s.soundCues);
-  const input = useRef<HTMLInputElement>(null);
-  const anchor = useRef<HTMLDivElement>(null);
-  const popover = useRef<HTMLDivElement>(null);
-  const [pop, setPop] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
-  const uses = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const cue of report.cues) map.set(cue.sound, (map.get(cue.sound) ?? 0) + 1);
-    return map;
-  }, [report]);
-  const names = new Set(project.sounds.map((s) => s.name));
-  const missing = [...uses.keys()].filter((name) => !names.has(name));
-  const problems = [...report.errors, ...missing.map((name) => `No sound called “${name}” (used by a cue)`)];
-
-  const toggle = () => {
-    if (pop || !anchor.current) {
-      setPop(null);
-      return;
-    }
-    const r = anchor.current.getBoundingClientRect();
-    setPop({ top: r.bottom + 6, left: r.left, width: r.width, maxHeight: Math.min(340, window.innerHeight - r.bottom - 18) });
-  };
-
-  useEffect(() => {
-    if (!pop) return;
-    const outside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (!popover.current?.contains(target) && !anchor.current?.contains(target)) setPop(null);
-    };
-    const key = (e: KeyboardEvent) => e.key === 'Escape' && setPop(null);
-    const close = () => setPop(null);
-    document.addEventListener('mousedown', outside);
-    window.addEventListener('keydown', key);
-    window.addEventListener('resize', close);
-    return () => {
-      document.removeEventListener('mousedown', outside);
-      window.removeEventListener('keydown', key);
-      window.removeEventListener('resize', close);
-    };
-  }, [pop]);
-
-  return (
-    <div className="sounds-card" data-drop="sounds" ref={anchor}>
-      <div className="sounds-head">
-        <button className="sounds-toggle" onClick={toggle} aria-expanded={Boolean(pop)}>
-          <AudioLines size={15} />
-          <strong>Sound effects</strong>
-          <span className="dim">
-            {project.sounds.length
-              ? `${project.sounds.length} sound${project.sounds.length === 1 ? '' : 's'} · ${report.cues.length} cue${report.cues.length === 1 ? '' : 's'}`
-              : 'none yet'}
-          </span>
-          {problems.length > 0 && (
-            <span className="sounds-flag">
-              {problems.length} problem{problems.length === 1 ? '' : 's'}
-            </span>
-          )}
-          <ChevronDown size={14} className="sounds-chevron" />
-        </button>
-        <button className="icon-btn icon-sm" title="Add sound files" onClick={() => input.current?.click()}>
-          <Plus size={15} />
-        </button>
-        <input
-          ref={input}
-          type="file"
-          accept="audio/*"
-          multiple
-          hidden
-          onChange={(e) => {
-            const files = [...(e.target.files ?? [])];
-            e.target.value = '';
-            if (files.length) void uploadSoundFiles(files);
-          }}
-        />
-      </div>
-      {pop &&
-        createPortal(
-          <div
-            ref={popover}
-            className="sounds-pop"
-            data-drop="sounds"
-            style={{ top: pop.top, left: pop.left, width: pop.width, maxHeight: pop.maxHeight }}
-          >
-            {project.sounds.length === 0 ? (
-              <div className="dim sounds-empty">No sounds yet. Ask Claude for sound design, or drop audio files here.</div>
-            ) : (
-              <ul className="sounds-list">
-                {project.sounds.map((sound) => {
-                  const count = uses.get(sound.name) ?? 0;
-                  return (
-                    <li key={sound.name} title={sound.label}>
-                      <button
-                        className="icon-btn icon-sm"
-                        aria-label={`Play ${sound.name}`}
-                        onClick={() => void previewAudio.play(sound.url).catch(toastError)}
-                      >
-                        <Play size={12} fill="currentColor" />
-                      </button>
-                      <span className="sound-name">{sound.name}</span>
-                      <span className="dim">
-                        {sound.source} · {sound.duration.toFixed(2)}s · {count ? `${count}×` : 'unused'}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {problems.map((problem) => (
-              <div key={problem} className="sounds-problem">
-                {problem}
-              </div>
-            ))}
-            <div className="dim sounds-hint">Drop audio files on Sound effects to add them.</div>
-          </div>,
-          document.body,
-        )}
-    </div>
-  );
-}
-
-export function SidePanel() {
+function ChatPanel() {
   const panel = useEditor((s) => s.panel);
   const project = useEditor((s) => s.project)!;
   const scene = useEditor((s) => currentScene(s));
   const scopeKey = panel === 'scene' ? scene?.id : '_project';
   return (
-    <aside className="side">
+    <>
       <div className="side-head">
         <Segmented
           size="sm"
@@ -586,13 +311,19 @@ export function SidePanel() {
         )}
       </div>
       {panel === 'scene' && scene ? <SceneToolbar scene={scene} /> : <ProjectToolbar />}
-      {panel === 'project' && (
-        <div className="side-cards">
-          <MusicCard />
-          <SoundsCard />
-        </div>
-      )}
       {scopeKey && <Chat key={`${project.id}/${scopeKey}`} scopeKey={scopeKey} />}
-    </aside>
+    </>
+  );
+}
+
+export function SidePanel() {
+  const rail = useEditor((s) => s.rail);
+  return (
+    <>
+      <aside className="side" data-drop={rail === 'sounds' ? 'sounds' : undefined}>
+        {rail === 'soundtrack' ? <SoundtrackPanel /> : rail === 'sounds' ? <SoundsPanel /> : <ChatPanel />}
+      </aside>
+      <Rail />
+    </>
   );
 }

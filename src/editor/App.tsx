@@ -5,7 +5,8 @@ import { Filmstrip } from './components/Filmstrip';
 import { ArtDirectionModal, NewProjectModal } from './components/Modals';
 import { Present } from './components/Present';
 import { RenderView } from './components/RenderView';
-import { SidePanel, uploadMusicFile, uploadSoundFiles } from './components/SidePanel';
+import { uploadMusicFile, uploadSoundFiles } from './components/AudioPanels';
+import { SidePanel } from './components/SidePanel';
 import { Stage } from './components/Stage';
 import { TopBar } from './components/TopBar';
 import { connectEvents } from './events';
@@ -57,7 +58,7 @@ export function App() {
   const presenting = useEditor((s) => s.presenting);
   const [loaded, setLoaded] = useState(false);
   const [dropping, setDropping] = useState(false);
-  /** Files dropped on the Sounds card become sound effects; anywhere else, the soundtrack. */
+  /** Files dropped on the Sound effects panel (or its rail button) become sound effects; anywhere else, the soundtrack. */
   const [dropZone, setDropZone] = useState<'music' | 'sounds'>('music');
   const dragDepth = useRef(0);
 
@@ -116,7 +117,7 @@ export function App() {
 
   return (
     <div
-      className={`app ${view === 'render' ? 'app-render' : ''}`}
+      className="app"
       onDragEnter={(e) => {
         if (!hasFiles(e) || !project) return;
         dragDepth.current++;
@@ -148,9 +149,9 @@ export function App() {
         <>
           <div className="main" hidden={view !== 'scenes'}>
             <Stage />
+            {view === 'scenes' && <Filmstrip />}
             <SidePanel />
           </div>
-          {view === 'scenes' && <Filmstrip />}
           {view === 'render' && <RenderView />}
         </>
       ) : (
