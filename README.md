@@ -1,5 +1,7 @@
 # Storyboard
 
+https://github.com/user-attachments/assets/1f0c6565-9a78-4d8f-a8ba-1e75a212e519
+
 ⚠️ This is a personal software. No contribution accepted. Fork it and make changes for yourself if you want to
 
 A local, prompt-driven motion-design editor. Every scene is a small piece of code; you change it by chatting with Claude next to a live preview, down to the millisecond. Finished videos export to MP4.
