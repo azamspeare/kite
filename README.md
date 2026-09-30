@@ -1,5 +1,7 @@
 # Storyboard
 
+⚠️ This is a personal software. No contribution accepted. Fork it and make changes for yourself if you want to
+
 A local, prompt-driven motion-design editor. A video is a list of scenes; every scene is a small React component that renders one frame for a given time `t`. You describe changes in a chat next to a live preview — Claude edits the scene, renders frames to check its own work, and the preview updates instantly. Finished videos export to MP4.
 
 Inspired by [Caleb Porzio's tweet](https://x.com/calebporzio/status/2104945478055989489) about the little editor he vibe-coded for his video: prompt Opus for each scene down to the millisecond, drag in audio, detect the downbeats and phrases of the track and snap animations to them.
