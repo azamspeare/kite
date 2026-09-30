@@ -1,0 +1,5 @@
+node_modules
+projects/*/renders
+projects/*/.storyboard
+projects/CLAUDE.md
+package-lock.json

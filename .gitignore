@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Your projects stay on your machine; only the bundled example is part of the repo.
+# (projects/CLAUDE.md is written by the app when it starts.)
+projects/*
+!projects/example/
+
+# Per-project internals (chats, undo, captured frames) and exported videos
+projects/*/.storyboard/
+projects/*/renders/
+
+# Secrets and local environment
+.env
+.env.*
+
+# Personal Claude Code settings and notes
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Logs and caches
+*.log
+.vite/
+*.tsbuildinfo
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
