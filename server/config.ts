@@ -1,19 +1,23 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { LOCAL_DIR, ROOT } from './paths';
+import { networkConfig } from './network';
+import { readSettings } from './settings';
 
-export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+export { LOCAL_DIR, ROOT, SETTINGS_FILE } from './paths';
 export const PROJECTS_DIR = path.resolve(process.env.STORYBOARD_PROJECTS ?? path.join(ROOT, 'projects'));
-export const HOST = process.env.HOST ?? '127.0.0.1';
-export const PORT = Number(process.env.PORT ?? 5199);
-export const BASE_URL = `http://${HOST}:${PORT}`;
-export const MCP_URL = `${BASE_URL}/mcp`;
+export let { host: HOST, port: PORT, baseUrl: BASE_URL } = networkConfig(readSettings());
+export let MCP_URL = `${BASE_URL}/mcp`;
+
+/** Setup can start the app in this same process after saving new network choices. */
+export function reloadNetworkConfig() {
+  ({ host: HOST, port: PORT, baseUrl: BASE_URL } = networkConfig(readSettings()));
+  MCP_URL = `${BASE_URL}/mcp`;
+}
 
 /**
  * Everything `./storyboard` installs or keeps for this machine lives in the app folder (git-ignored):
  * the choices made in setup, uv and its Python, headless Chromium, the engines' API keys, PID files and logs.
  */
-export const LOCAL_DIR = path.join(ROOT, '.storyboard');
-export const SETTINGS_FILE = path.join(LOCAL_DIR, 'settings.json');
 export const LOG_DIR = path.join(LOCAL_DIR, 'logs');
 export const RUN_DIR = path.join(LOCAL_DIR, 'run');
 export const KEYS_DIR = path.join(LOCAL_DIR, 'keys');
@@ -41,12 +45,13 @@ export const SFX_KEY_FILE = path.join(KEYS_DIR, 'sfx');
 
 export const FFMPEG = process.env.FFMPEG_PATH ?? 'ffmpeg';
 export const CLAUDE_BIN = process.env.CLAUDE_PATH ?? 'claude';
+export const CODEX_BIN = process.env.CODEX_PATH ?? 'codex';
 
-/** Model and effort the in-app agent uses unless the UI picks something else. */
-export const DEFAULT_MODEL = process.env.STORYBOARD_MODEL ?? 'claude-opus-5-5';
-export const DEFAULT_EFFORT = (process.env.STORYBOARD_EFFORT ?? 'medium') as Effort;
-export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
-export type Effort = (typeof EFFORTS)[number];
+/** Provider-specific defaults; STORYBOARD_MODEL overrides the default provider's model. */
+export const DEFAULT_CLAUDE_MODEL = process.env.STORYBOARD_CLAUDE_MODEL ?? 'claude-opus-5-5';
+export const DEFAULT_CODEX_MODEL = process.env.STORYBOARD_CODEX_MODEL ?? 'default';
+export const DEFAULT_EFFORT = process.env.STORYBOARD_EFFORT ?? 'medium';
+export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 /** Frames sent to the agent: 960×540 JPEG keeps a batch of frames well under MCP output limits. */
 export const AGENT_FRAME_SCALE = 0.5;

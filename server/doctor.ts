@@ -7,7 +7,8 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { BASE_URL, CLAUDE_BIN, FFMPEG, HOST, MUSIC_URL, PORT, PROJECTS_DIR, ROOT, SFX_URL } from './config';
 import { engineHealth, engineInstalled, isLocalUrl } from './music/engine';
-import { readSettings } from './settings';
+import { preferredProvider, readSettings } from './settings';
+import { CodexProvider } from './agents/codex';
 import { rail, Task } from './cli/ui';
 import { sfxEngineHealth, sfxEngineInstalled, sfxModelDownloaded } from './sound/engine';
 
@@ -131,6 +132,29 @@ export async function checkClaude(): Promise<Check> {
     : { level: 'fail', label: `Claude Code ${status.version} is not logged in`, fix: 'Run: claude auth login' };
 }
 
+export async function checkCodex(): Promise<Check> {
+  const status = await new CodexProvider().status();
+  return status.ok
+    ? {
+        level: status.detail ? 'warn' : 'ok',
+        label: `${status.version ?? 'Codex'}${status.detail ? '' : ', logged in'}`,
+        fix: status.detail,
+      }
+    : { level: 'fail', label: 'Codex is not ready', fix: status.detail };
+}
+
+/** Only one agent is required; an unused provider must not block a Codex-only or Claude-only setup. */
+export async function checkAgents(): Promise<Check> {
+  const preferred = preferredProvider();
+  if (preferred) return preferred === 'codex' ? checkCodex() : checkClaude();
+  const [claude, codex] = await Promise.all([checkClaude(), checkCodex()]);
+  if (claude.level === 'ok') return claude;
+  if (codex.level === 'ok') return codex;
+  if (claude.level === 'warn') return claude;
+  if (codex.level === 'warn') return codex;
+  return { level: 'fail', label: 'No agent is ready (Claude Code or Codex)', fix: `${claude.fix}\n${codex.fix}` };
+}
+
 async function checkPort(): Promise<Check> {
   const free = await new Promise<boolean>((resolve) => {
     const server = net.createServer();
@@ -216,7 +240,7 @@ export async function doctor(): Promise<number> {
     checkNode(),
     checkFfmpeg(),
     checkChromium(),
-    checkClaude(),
+    checkAgents(),
     checkPort(),
     checkProjects(),
     checkMusic(),

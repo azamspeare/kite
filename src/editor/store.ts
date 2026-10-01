@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { AgentInfo, AgentProviderId } from '../shared/agents';
 import type {
   ChatMessage,
   ProjectState,
@@ -55,11 +56,14 @@ interface EditorState {
   soundCues: SoundReport;
   presenting: boolean;
   modal: null | 'art' | 'new-project';
+  provider: string;
   effort: string;
   /** Empty = the server default (STORYBOARD_MODEL). */
   model: string;
   toasts: Toast[];
 }
+
+const savedProvider = localStorage.getItem('sb:provider') ?? '';
 
 export const useEditor = create<EditorState>(() => ({
   info: null,
@@ -83,8 +87,9 @@ export const useEditor = create<EditorState>(() => ({
   soundCues: { cues: [], errors: [] },
   presenting: false,
   modal: null,
-  effort: localStorage.getItem('sb:effort') ?? 'medium',
-  model: localStorage.getItem('sb:model') ?? '',
+  provider: savedProvider,
+  effort: '',
+  model: '',
   toasts: [],
 }));
 
@@ -93,6 +98,10 @@ const get = useEditor.getState;
 
 // ---------------------------------------------------------------------------
 // Derived helpers
+
+export function currentAgent(s = get()): AgentInfo | undefined {
+  return s.info?.agents?.find((a) => a.id === (s.provider || s.info?.defaultProvider)) ?? s.info?.agents?.[0];
+}
 
 export function currentScene(s = get()): SceneState | null {
   return s.project?.scenes.find((x) => x.id === s.sceneId) ?? s.project?.scenes[0] ?? null;
@@ -279,12 +288,33 @@ export function resetChat(projectId: string, scopeKey: string) {
   set((s) => ({ chats: { ...s.chats, [chatKey(projectId, scopeKey)]: { messages: [], busy: false, loaded: true } } }));
 }
 
+function agentPreferences(provider: AgentProviderId) {
+  return {
+    model:
+      localStorage.getItem(`sb:model:${provider}`) ?? (provider === 'claude-code' ? localStorage.getItem('sb:model') : '') ?? '',
+    effort:
+      localStorage.getItem(`sb:effort:${provider}`) ??
+      (provider === 'claude-code' ? localStorage.getItem('sb:effort') : '') ??
+      '',
+  };
+}
+
+export function setInfo(info: Info) {
+  const provider = info.agents.find((a) => a.id === get().provider)?.id ?? info.defaultProvider;
+  set({ info, provider, ...agentPreferences(provider) });
+}
+
+export function setProvider(provider: AgentProviderId) {
+  localStorage.setItem('sb:provider', provider);
+  set({ provider, ...agentPreferences(provider) });
+}
+
 export function setEffort(effort: string) {
-  localStorage.setItem('sb:effort', effort);
+  localStorage.setItem(`sb:effort:${currentAgent()?.id ?? 'claude-code'}`, effort);
   set({ effort });
 }
 
 export function setModel(model: string) {
-  localStorage.setItem('sb:model', model);
+  localStorage.setItem(`sb:model:${currentAgent()?.id ?? 'claude-code'}`, model);
   set({ model });
 }

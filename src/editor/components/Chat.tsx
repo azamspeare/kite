@@ -1,20 +1,15 @@
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Loader2, Square } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ChatMessage, ChatStep } from '../../shared/types';
+import { modelSelection, type AgentProviderId } from '../../shared/agents';
 import { api } from '../api';
-import { chatKey, currentScene, loadChat, setEffort, setModel, toastError, useEditor } from '../store';
+import { chatKey, currentAgent, currentScene, loadChat, setEffort, setModel, setProvider, toastError, useEditor } from '../store';
 import { Modal, RichText } from './ui';
 
 const SCENE_IDEAS = [
   'Hold on the headline a full second longer, then slide the card in from the right.',
   'Make the entrance snappier and land the card exactly on the next downbeat.',
   'Match the first frame to the last frame of the previous scene so the cut is invisible.',
-];
-
-const MODELS: [string, string][] = [
-  ['claude-opus-5-5', 'Opus 5.5'],
-  ['claude-sonnet-5-5', 'Sonnet 5.5'],
-  ['claude-fable-5-1', 'Fable 5.1'],
 ];
 
 const PROJECT_IDEAS = [
@@ -65,7 +60,7 @@ function FrameStrip({ images, onOpen }: { images: string[]; onOpen: (index: numb
   return (
     <div className="frame-strip">
       {images.map((src, i) => (
-        <button key={src} onClick={() => onOpen(i)} title="Frame Claude looked at">
+        <button key={src} onClick={() => onOpen(i)} title="Frame the agent looked at">
           <img src={src} alt="" loading="lazy" />
         </button>
       ))}
@@ -117,13 +112,14 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
       {message.error && <div className="msg-error">{message.error}</div>}
       {!running && (
         <div className="msg-meta">
+          {message.provider && `${message.provider === 'codex' ? 'Codex' : 'Claude Code'} · `}
           {message.durationMs !== undefined && `${Math.max(1, Math.round(message.durationMs / 1000))}s`}
           {message.status === 'stopped' && ' · stopped'}
           {message.undone && ' · undone'}
         </div>
       )}
       {viewer !== null && (
-        <Modal title="Frame Claude looked at" onClose={() => setViewer(null)} wide>
+        <Modal title="Frame the agent looked at" onClose={() => setViewer(null)} wide>
           <img className="viewer-image" src={images[viewer]} alt="" />
           {images.length > 1 && (
             <div className="viewer-nav">
@@ -155,9 +151,13 @@ function UserMessage({ message }: { message: ChatMessage }) {
 
 function Composer({ scopeKey, busy, fill }: { scopeKey: string; busy: boolean; fill: string | null }) {
   const project = useEditor((s) => s.project)!;
-  const effort = useEditor((s) => s.effort);
-  const model = useEditor((s) => s.model || s.info?.model || MODELS[0][0]);
-  const efforts = useEditor((s) => s.info?.efforts ?? ['low', 'medium', 'high', 'xhigh', 'max']);
+  const agent = useEditor(currentAgent);
+  const agents = useEditor((s) => s.info?.agents);
+  const savedModel = useEditor((s) => s.model);
+  const savedEffort = useEditor((s) => s.effort);
+  const { model, effort, efforts } = agent
+    ? modelSelection(agent, savedModel, savedEffort)
+    : { model: '', effort: '', efforts: [] };
   const draftKey = `sb:draft:${project.id}/${scopeKey}`;
   const [text, setText] = useState(() => sessionStorage.getItem(draftKey) ?? '');
   const area = useRef<HTMLTextAreaElement>(null);
@@ -172,7 +172,7 @@ function Composer({ scopeKey, busy, fill }: { scopeKey: string; busy: boolean; f
 
   const send = async () => {
     const value = text.trim();
-    if (!value || busy) return;
+    if (!value || busy || !agent) return;
     const s = useEditor.getState();
     const scene = currentScene(s);
     let playhead: number | undefined;
@@ -180,7 +180,7 @@ function Composer({ scopeKey, busy, fill }: { scopeKey: string; busy: boolean; f
     else if (scene) playhead = s.mode === 'scene' ? s.time : Math.max(0, Math.min(scene.duration, s.time - scene.start));
     setText('');
     try {
-      await api.send(project.id, scopeKey, { text: value, playhead, effort, model });
+      await api.send(project.id, scopeKey, { text: value, playhead, provider: agent.id, effort, model });
     } catch (e) {
       setText(value);
       toastError(e);
@@ -207,21 +207,31 @@ function Composer({ scopeKey, busy, fill }: { scopeKey: string; busy: boolean; f
         }}
       />
       <div className="composer-bar">
-        <span className="hint">⌘↵ to send</span>
-        <div className="spacer" />
-        <label className="effort" title="Model">
-          <select value={model} onChange={(e) => setModel(e.target.value)}>
-            {(MODELS.some(([id]) => id === model) ? MODELS : [[model, model] as [string, string], ...MODELS]).map(
-              ([id, label]) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ),
-            )}
+        <label className="effort" title="Agent provider">
+          <select
+            aria-label="Agent provider"
+            value={agent?.id ?? ''}
+            disabled={busy}
+            onChange={(e) => setProvider(e.target.value as AgentProviderId)}
+          >
+            {agents?.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.label}
+              </option>
+            ))}
           </select>
         </label>
-        <label className="effort" title="Effort: how much Claude thinks before and while editing">
-          <select value={effort} onChange={(e) => setEffort(e.target.value)}>
+        <label className="effort" title="Model">
+          <select aria-label="Model" value={model} onChange={(e) => setModel(e.target.value)}>
+            {agent?.models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="effort" title="Effort: how much the agent thinks before and while editing">
+          <select aria-label="Effort" value={effort} onChange={(e) => setEffort(e.target.value)}>
             {efforts.map((x) => (
               <option key={x} value={x}>
                 {x}
@@ -229,12 +239,13 @@ function Composer({ scopeKey, busy, fill }: { scopeKey: string; busy: boolean; f
             ))}
           </select>
         </label>
+        <div className="spacer" />
         {busy ? (
           <button className="btn btn-sm" onClick={() => api.stop(project.id, scopeKey).catch(toastError)}>
             <Square size={11} fill="currentColor" /> Stop
           </button>
         ) : (
-          <button className="btn btn-primary btn-send" disabled={!text.trim()} onClick={send}>
+          <button className="btn btn-primary btn-send" disabled={!text.trim() || !agent} title="⌘↵ to send" onClick={send}>
             Send
           </button>
         )}
@@ -247,7 +258,7 @@ export function Chat({ scopeKey }: { scopeKey: string }) {
   const project = useEditor((s) => s.project)!;
   const key = chatKey(project.id, scopeKey);
   const chat = useEditor((s) => s.chats[key]);
-  const provider = useEditor((s) => s.info?.provider);
+  const provider = useEditor(currentAgent);
   const list = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -295,7 +306,7 @@ export function Chat({ scopeKey }: { scopeKey: string }) {
               <p>
                 {scopeKey === '_project'
                   ? 'Talk about the video as a whole: structure, pacing, new scenes, consistency.'
-                  : 'Describe a change to this scene. Claude edits the code, renders frames to check its work, and the preview updates live.'}
+                  : 'Describe a change to this scene. The agent edits the code, renders frames to check its work, and the preview updates live.'}
               </p>
               {ideas.map((idea) => (
                 <button key={idea} className="idea" onClick={() => setFill(idea)}>

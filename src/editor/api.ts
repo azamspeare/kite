@@ -1,3 +1,4 @@
+import type { AgentInfo, AgentProviderId } from '../shared/agents';
 import type {
   ChatMessage,
   ChatThread,
@@ -10,6 +11,8 @@ import type {
 } from '../shared/types';
 
 export interface Info {
+  agents: AgentInfo[];
+  defaultProvider: AgentProviderId;
   provider: { ok: boolean; label: string; version?: string; detail?: string };
   model: string;
   effort: string;
@@ -92,8 +95,11 @@ export const api = {
   checkSeams: (id: string, sceneId?: string) => request<SeamResult[]>('POST', `${p(id)}/seams`, { sceneId }),
 
   chat: (id: string, key: string) => request<ChatThread & { busy: boolean }>('GET', `${p(id)}/chats/${key}`),
-  send: (id: string, key: string, input: { text: string; playhead?: number; effort?: string; model?: string }) =>
-    request<ChatMessage>('POST', `${p(id)}/chats/${key}`, input),
+  send: (
+    id: string,
+    key: string,
+    input: { text: string; playhead?: number; provider?: string; effort?: string; model?: string },
+  ) => request<ChatMessage>('POST', `${p(id)}/chats/${key}`, input),
   stop: (id: string, key: string) => request('POST', `${p(id)}/chats/${key}/stop`),
   undo: (id: string, key: string) => request<ChatMessage>('POST', `${p(id)}/chats/${key}/undo`),
   clearChat: (id: string, key: string) => request('DELETE', `${p(id)}/chats/${key}`),

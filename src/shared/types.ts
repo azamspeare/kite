@@ -1,3 +1,4 @@
+import type { AgentProviderId } from './agents';
 // Data shapes shared by the server, the editor UI and the scene runtime.
 
 export interface SceneMeta {
@@ -142,6 +143,8 @@ export interface ChatMessage {
   text: string;
   createdAt: number;
   /** Assistant only. */
+  provider?: AgentProviderId;
+  model?: string;
   steps?: ChatStep[];
   durationMs?: number;
   costUsd?: number;
@@ -157,6 +160,8 @@ export interface ChatMessage {
 export interface ChatThread {
   scope: ChatScope;
   sessionId: string | null;
+  /** Missing in legacy chats, whose sessions belong to Claude Code. */
+  provider?: AgentProviderId;
   messages: ChatMessage[];
 }
 

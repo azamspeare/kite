@@ -5,9 +5,9 @@ import { Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { ChatScope } from '../src/shared/types';
 import { scopeKey } from '../src/shared/types';
-import type { AgentProvider } from './agents/types';
+import type { AgentRegistry } from './agents/registry';
 import type { ChatManager, SendInput } from './chat';
-import { DEFAULT_EFFORT, DEFAULT_MODEL, EFFORTS, MCP_URL, PROJECTS_DIR } from './config';
+import { MCP_URL, PROJECTS_DIR } from './config';
 import type { Hub } from './hub';
 import type { MusicLibrary } from './music/library';
 import type { MusicService } from './music/service';
@@ -26,7 +26,7 @@ export interface ApiDeps {
   hub: Hub;
   seams: SeamService;
   renderer: Renderer;
-  provider: AgentProvider;
+  agents: AgentRegistry;
   chats: ChatManager;
   /** Compile a scene through Vite and return the error text, or null when it compiles. */
   diagnose: (file: string) => Promise<string | null>;
@@ -35,7 +35,7 @@ export interface ApiDeps {
   soundLibrary: SoundLibrary;
 }
 
-export function createApi({ store, hub, seams, renderer, provider, chats, diagnose, library, music, soundLibrary }: ApiDeps) {
+export function createApi({ store, hub, seams, renderer, agents, chats, diagnose, library, music, soundLibrary }: ApiDeps) {
   const app = new Hono().basePath('/api');
 
   app.onError((err, c) => {
@@ -59,16 +59,20 @@ export function createApi({ store, hub, seams, renderer, provider, chats, diagno
   const chatScope = (key: string): ChatScope =>
     key === '_project' ? { kind: 'project' } : { kind: 'scene', sceneId: assertId(key, 'scene id') };
 
-  app.get('/info', async (c) =>
-    c.json({
-      provider: await provider.status(),
-      model: DEFAULT_MODEL,
-      effort: DEFAULT_EFFORT,
-      efforts: EFFORTS,
+  app.get('/info', async (c) => {
+    const info = await agents.info();
+    const provider = info.agents.find((p) => p.id === info.defaultProvider)!;
+    return c.json({
+      ...info,
+      // Keep the original fields for editors opened before the server was upgraded.
+      provider,
+      model: provider.model,
+      effort: provider.effort,
+      efforts: provider.models.find((m) => m.id === provider.model)!.efforts,
       mcpUrl: MCP_URL,
       projectsDir: PROJECTS_DIR,
-    }),
-  );
+    });
+  });
 
   // Projects ------------------------------------------------------------------
   app.get('/projects', async (c) => c.json(await store.list()));

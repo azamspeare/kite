@@ -43,11 +43,13 @@ export class ProjectStore {
 
   async init() {
     await fs.mkdir(this.root, { recursive: true });
-    const guidePath = path.join(this.root, 'CLAUDE.md');
-    const current = await fs.readFile(guidePath, 'utf8').catch(() => null);
-    // Refresh the guide while it is still ours (any version of the managed marker); leave user-edited copies alone.
-    if (current === null || (/<!-- storyboard:managed-guide v\d+ -->/.test(current) && current !== SCENE_GUIDE)) {
-      await writeFileAtomic(guidePath, SCENE_GUIDE);
+    for (const name of ['CLAUDE.md', 'AGENTS.md']) {
+      const guidePath = path.join(this.root, name);
+      const current = await fs.readFile(guidePath, 'utf8').catch(() => null);
+      // Refresh the guide while it is still ours (any version of the managed marker); leave user-edited copies alone.
+      if (current === null || (/<!-- storyboard:managed-guide v\d+ -->/.test(current) && current !== SCENE_GUIDE)) {
+        await writeFileAtomic(guidePath, SCENE_GUIDE);
+      }
     }
   }
 

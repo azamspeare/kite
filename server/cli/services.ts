@@ -40,7 +40,13 @@ import { BAR, bold, cyan, dim, formatDuration, gray, green, LiveRows, rail, red,
 export type ServiceId = 'app' | 'music' | 'sfx';
 export const SERVICES: ServiceId[] = ['app', 'music', 'sfx'];
 export const NAMES: Record<ServiceId, string> = { app: 'Storyboard', music: 'Music engine', sfx: 'Sound-effects engine' };
-const URLS: Record<ServiceId, string> = { app: BASE_URL, music: MUSIC_URL, sfx: SFX_URL };
+const URLS: Record<ServiceId, string> = {
+  get app() {
+    return BASE_URL;
+  },
+  music: MUSIC_URL,
+  sfx: SFX_URL,
+};
 
 /** Before ./storyboard existed, `npm run music|sfx start` kept the engines' PID files and logs here. */
 export const LEGACY_STATE_DIR = path.join(os.homedir(), '.config', 'storyboard');
@@ -166,8 +172,14 @@ function spawnService(id: ServiceId): number | null {
   child.unref();
   fs.closeSync(log);
   if (!child.pid) return null;
-  writePid(pidFiles(id)[0], { pid: child.pid, startedAt: Date.now(), url: URLS[id] });
+  writePid(pidFiles(id)[0], { pid: child.pid, startedAt: Date.now(), url: URLS[id], ...(id === 'app' ? { host: HOST } : {}) });
   return child.pid;
+}
+
+/** Old PID files predate the explicit bind address; their URL is the best available fallback. */
+export function appNeedsRestart(info: PidInfo): boolean {
+  const host = info.host ?? new URL(info.url).hostname.replace(/^\[|\]$/g, '');
+  return info.url !== BASE_URL || host !== HOST;
 }
 
 type Launch =
@@ -179,6 +191,13 @@ type Launch =
 async function launch(id: ServiceId): Promise<Launch> {
   if (id !== 'app' && !isLocalUrl(URLS[id])) return { state: 'running', note: `on another machine (${URLS[id]})` };
   const mine = await runningProcess(id);
+  if (id === 'app' && mine && appNeedsRestart(mine)) {
+    return {
+      state: 'failed',
+      reason: `already running at ${mine.url} with different network settings`,
+      hint: 'Apply the saved address and port with ./storyboard restart app',
+    };
+  }
   const answer = await probe(id);
   if (id === 'app' && answer && (await appRunning()) === 'elsewhere') {
     return {
@@ -332,16 +351,18 @@ export async function status(): Promise<void> {
   const app = await appRunning();
   const appMine = await runningProcess('app');
   rows.push(
-    app === 'here'
-      ? [
-          'Storyboard',
-          green('●'),
-          'running',
-          `${cyan(BASE_URL)}${appMine ? dim(` · up ${uptime(appMine.startedAt)}`) : dim(' · not started by ./storyboard')}`,
-        ]
-      : app === 'elsewhere'
-        ? ['Storyboard', gray('○'), 'stopped', dim(`port ${PORT} is used by a Storyboard in another folder`)]
-        : ['Storyboard', gray('○'), 'stopped', ''],
+    appMine && appNeedsRestart(appMine)
+      ? ['Storyboard', yellow('◒'), 'restart needed', `${cyan(appMine.url)} · ./storyboard restart app`]
+      : app === 'here'
+        ? [
+            'Storyboard',
+            green('●'),
+            'running',
+            `${cyan(BASE_URL)}${appMine ? dim(` · up ${uptime(appMine.startedAt)}`) : dim(' · not started by ./storyboard')}`,
+          ]
+        : app === 'elsewhere'
+          ? ['Storyboard', gray('○'), 'stopped', dim(`port ${PORT} is used by a Storyboard in another folder`)]
+          : ['Storyboard', gray('○'), 'stopped', ''],
   );
   for (const id of ['music', 'sfx'] as const) {
     const label = id === 'music' ? 'Music' : 'Sound effects';

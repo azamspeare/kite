@@ -23,7 +23,10 @@ function help() {
   for (const [command, what] of COMMANDS) console.log(`${BAR}  ${cyan(command.padEnd(12))}${what}`);
   rail.gap();
   console.log(`${BAR}  ${dim('start, stop, restart and logs also take a service: app, music or sfx')}`);
-  console.log(`${BAR}  ${dim('logs setup shows the last setup · setup --yes [--music=on|off] [--sfx=on|off] asks nothing')}`);
+  console.log(
+    `${BAR}  ${dim('logs setup shows the last setup · setup --yes [--provider=claude-code|codex] [--music=on|off] [--sfx=on|off] asks nothing')}`,
+  );
+  console.log(`${BAR}  ${dim('setup --host=0.0.0.0 --port=5299 saves the bind address and port (--ip is an alias for --host)')}`);
   console.log(`${gray('└')}  ${bold('Start here:')} ${cyan('./storyboard setup')}\n`);
 }
 
@@ -48,7 +51,11 @@ async function main(): Promise<number> {
   switch (command) {
     case 'setup': {
       const opts = parseSetup(args);
-      return opts ? ((await setup(opts)) ? 0 : 1) : usage(`Unknown setup option: ${args.join(' ')}`);
+      return opts
+        ? (await setup(opts))
+          ? 0
+          : 1
+        : usage(`Invalid setup option: ${args.join(' ')} (host: IP address or localhost; port: 1–65535)`);
     }
     case 'start':
     case 'restart': {

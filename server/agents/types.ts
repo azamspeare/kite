@@ -1,4 +1,4 @@
-import type { Effort } from '../config';
+import type { AgentModel, AgentProviderId } from '../../src/shared/agents';
 
 export interface McpServerConfig {
   type: 'http';
@@ -16,7 +16,7 @@ export interface AgentTurn {
   /** Continue an existing session instead of starting `sessionId` fresh. */
   resume: boolean;
   model: string;
-  effort: Effort;
+  effort: string;
   /** Built-in tools to expose (e.g. Read, Edit, Write, Glob, Grep). */
   tools: string[];
   /** Pre-approved permission rules; everything else is denied without prompting. */
@@ -52,10 +52,12 @@ export interface AgentProviderStatus {
   detail?: string;
 }
 
-/** Anything that can run an agent turn against the Storyboard tools (Claude Code today, others later). */
+/** An agent that runs turns against the scoped Storyboard tools. */
 export interface AgentProvider {
-  id: string;
+  id: AgentProviderId;
   label: string;
+  defaultModel: string;
+  models(): Promise<AgentModel[]>;
   status(): Promise<AgentProviderStatus>;
   run(turn: AgentTurn): AsyncIterable<AgentEvent>;
 }

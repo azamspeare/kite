@@ -27,6 +27,22 @@ describe('parseSetup', () => {
     assert.deepEqual(parseSetup([]), { yes: false });
     assert.deepEqual(parseSetup(['--yes', '--music=on', '--sfx=off']), { yes: true, music: true, sfx: false });
     assert.deepEqual(parseSetup(['-y', '--sfx=yes']), { yes: true, sfx: true });
+    assert.deepEqual(parseSetup(['--yes', '--provider=codex']), { yes: true, provider: 'codex' });
+    assert.deepEqual(parseSetup(['--provider=claude-code']), { yes: false, provider: 'claude-code' });
+    assert.equal(parseSetup(['--provider=other']), null);
+  });
+
+  it('reads and validates network choices in both flag forms', () => {
+    assert.deepEqual(parseSetup(['--yes', '--host=0.0.0.0', '--port=5299']), { yes: true, host: '0.0.0.0', port: 5299 });
+    assert.deepEqual(parseSetup(['--ip', '192.168.1.10', '--port', '65535']), { yes: false, host: '192.168.1.10', port: 65535 });
+    assert.deepEqual(parseSetup(['--host=::', '--port=1']), { yes: false, host: '::', port: 1 });
+    assert.deepEqual(parseSetup(['--host', 'localhost']), { yes: false, host: 'localhost' });
+    for (const value of ['', '0', '65536', '-1', '1.5', '1e3', 'abc', ' 80', '0x50'])
+      assert.equal(parseSetup([`--port=${value}`]), null, value);
+    for (const value of ['', 'example.com', 'http://127.0.0.1', '127.0.0.1:80', '999.1.1.1', '[::1]', 'fe80::1%en0'])
+      assert.equal(parseSetup([`--host=${value}`]), null, value);
+    assert.equal(parseSetup(['--port']), null);
+    assert.equal(parseSetup(['--host', '--yes']), null);
   });
 
   it('rejects unknown options', () => {

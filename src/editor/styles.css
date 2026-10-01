@@ -1261,12 +1261,14 @@ button:disabled {
 
 .composer-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin-top: 9px;
 }
 
 .effort select {
+  max-width: 160px;
   height: 31px;
   padding: 0 8px;
   border: 1px solid var(--line);

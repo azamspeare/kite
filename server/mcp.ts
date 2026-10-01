@@ -7,6 +7,8 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod';
 import type { ProjectState } from '../src/shared/types';
 import type { Capturer } from './capture';
+import { ProjectFiles } from './agents/files';
+import { FILE_TOOLS, SCENE_TOOLS } from './agents/tools';
 import { MAX_FRAMES_PER_CALL } from './config';
 import { musicSummary, sceneMusicContext, snapCuts } from './musicContext';
 import type { ProjectStore } from './projects';
@@ -35,11 +37,12 @@ export interface ToolServices {
 /** How long a music tool call waits for the engine before handing back a job id. */
 const MUSIC_WAIT_MS = 100_000;
 
-/** Who is calling: the in-app scene/project chats send headers; a terminal Claude Code session sends none. */
+/** Who is calling: the in-app scene/project chats send headers; a terminal agent session sends none. */
 interface Scope {
   kind: 'scene' | 'project' | 'open';
   projectId?: string;
   sceneId?: string;
+  fileTools?: boolean;
 }
 
 export const FRAME_MARKER = 'storyboard-frames:';
@@ -64,7 +67,12 @@ function header(h: IncomingHttpHeaders, name: string): string | undefined {
 function scopeFrom(h: IncomingHttpHeaders): Scope {
   const kind = header(h, 'x-storyboard-scope');
   if (kind === 'scene' || kind === 'project') {
-    return { kind, projectId: header(h, 'x-storyboard-project'), sceneId: header(h, 'x-storyboard-scene') };
+    return {
+      kind,
+      projectId: header(h, 'x-storyboard-project'),
+      sceneId: header(h, 'x-storyboard-scene'),
+      fileTools: header(h, 'x-storyboard-files') === 'scoped',
+    };
   }
   return { kind: 'open' };
 }
@@ -85,6 +93,9 @@ export function createToolServer(services: ToolServices, scope: Scope): McpServe
   const server = new McpServer({ name: 'storyboard', version: '1.0.0' });
 
   async function project(id?: string): Promise<ProjectState> {
+    if (scope.kind !== 'open' && (!scope.projectId || (id && id !== scope.projectId))) {
+      throw new ToolError('This chat may only access its own project.');
+    }
     const projectId = id ?? scope.projectId;
     if (projectId) return store.get(projectId);
     const all = await store.list();
@@ -119,6 +130,7 @@ export function createToolServer(services: ToolServices, scope: Scope): McpServe
     run: (args: z.infer<z.ZodObject<Shape>>) => Promise<ToolResult>,
     readOnly = false,
   ) {
+    if (scope.kind === 'scene' && ![...SCENE_TOOLS, ...FILE_TOOLS].includes(name)) return;
     server.registerTool(name, { description, inputSchema: shape, annotations: { readOnlyHint: readOnly } }, (async (
       args: z.infer<z.ZodObject<Shape>>,
     ) => {
@@ -162,6 +174,46 @@ export function createToolServer(services: ToolServices, scope: Scope): McpServe
   }
 
   // ---------------------------------------------------------------------------
+
+  if (scope.fileTools && scope.kind !== 'open') {
+    const files = async () => {
+      const p = await project();
+      if (scope.kind === 'scene') scene(p);
+      return new ProjectFiles(p, scope.kind === 'scene' ? scope.sceneId : undefined);
+    };
+    tool(
+      'list_project_files',
+      'List project source and asset files (up to 500). Paths are relative to the project.',
+      {},
+      async () => text((await (await files()).list()).join('\n')),
+      true,
+    );
+    tool(
+      'read_project_file',
+      'Read a project text file (up to 1 MB), including scenes, components and art-direction.md.',
+      { file: z.string() },
+      async ({ file }) => text(await (await files()).read(file)),
+      true,
+    );
+    tool(
+      'write_project_file',
+      'Write project code. A scene chat can only write its own scene. Use structure tools to create scenes; never write project.json.',
+      { file: z.string(), content: z.string().max(1024 * 1024) },
+      async ({ file, content }) => {
+        await (await files()).write(file, content);
+        return text(`Wrote ${file}`);
+      },
+    );
+    tool(
+      'edit_project_file',
+      'Replace one exact text match in a project source file. Read it first. The same write scope as write_project_file applies.',
+      { file: z.string(), old_text: z.string().min(1), new_text: z.string().max(1024 * 1024) },
+      async ({ file, old_text, new_text }) => {
+        await (await files()).edit(file, old_text, new_text);
+        return text(`Edited ${file}`);
+      },
+    );
+  }
 
   tool(
     'get_project',

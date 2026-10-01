@@ -2,7 +2,7 @@ import { execFile, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import readline from 'node:readline';
 import { promisify } from 'node:util';
-import { CLAUDE_BIN } from '../config';
+import { CLAUDE_BIN, DEFAULT_CLAUDE_MODEL, EFFORTS } from '../config';
 import { AsyncQueue, type AgentEvent, type AgentProvider, type AgentProviderStatus, type AgentTurn } from './types';
 
 const execFileAsync = promisify(execFile);
@@ -16,7 +16,16 @@ type Json = Record<string, any>;
 export class ClaudeCodeProvider implements AgentProvider {
   readonly id = 'claude-code';
   readonly label = 'Claude Code';
+  readonly defaultModel = DEFAULT_CLAUDE_MODEL;
   private cached: AgentProviderStatus | null = null;
+
+  async models() {
+    return [
+      ['claude-opus-5-5', 'Opus 5.5'],
+      ['claude-sonnet-5-5', 'Sonnet 5.5'],
+      ['claude-fable-5-1', 'Fable 5.1'],
+    ].map(([id, label]) => ({ id, label, efforts: EFFORTS, defaultEffort: 'medium' }));
+  }
 
   async status(): Promise<AgentProviderStatus> {
     if (this.cached?.ok) return this.cached;

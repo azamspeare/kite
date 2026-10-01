@@ -1,4 +1,4 @@
-/** Marks projects/CLAUDE.md as managed: Storyboard refreshes it on start. Delete the line to keep your own edits. */
+/** Marks the project CLAUDE.md and AGENTS.md guides as managed: Storyboard refreshes it on start. Delete the line to keep your own edits. */
 export const GUIDE_MARKER = '<!-- storyboard:managed-guide v3 -->';
 
 export function starterScene(name: string): string {
@@ -30,7 +30,7 @@ export default function Scene({ t, duration }: SceneProps) {
 
 export const ART_DIRECTION_TEMPLATE = `# Art direction
 
-Claude reads this before every edit. Describe the look and feel every scene should share.
+The agent reads this before every edit. Describe the look and feel every scene should share.
 
 - **Palette:** near-white background (#fafafa), ink #0a0a0a, secondary text #8a8a8a, one accent (#ff2e88) used sparingly for annotations.
 - **Type:** Inter Variable. Headlines 96–140 px, weight 650–720, letter-spacing −0.045em, tight line-height (1.0). Labels 18–24 px, weight 500.

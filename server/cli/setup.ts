@@ -3,10 +3,13 @@
 // turning something off offers to remove its files. Everything it installs stays in the app folder.
 import fs from 'node:fs';
 import path from 'node:path';
-import { BASE_URL, CLAUDE_BIN, MUSIC_DIR, ROOT, SFX_DIR } from '../config';
+import { BASE_URL, CLAUDE_BIN, CODEX_BIN, HOST, MUSIC_DIR, PORT, reloadNetworkConfig, ROOT, SFX_DIR } from '../config';
+import { networkConfig, NETWORK_WARNING, networkExposed } from '../network';
 import { checkChromium, checkFfmpeg, claudeStatus } from '../doctor';
+import { codexStatus } from '../agents/codex';
+import type { AgentProviderId } from '../../src/shared/agents';
 import { engineInstalled } from '../music/engine';
-import { readSettings, writeSettings, type Settings } from '../settings';
+import { preferredProvider, readSettings, writeSettings, type Settings } from '../settings';
 import { sfxEngineInstalled, sfxModelDownloaded } from '../sound/engine';
 import { installMusic, legacyMusic, musicNeeds, musicUnsupported, removeMusic } from './music';
 import { holdInput, releaseInput, setCancelHandler, withTerminal } from './input';
@@ -34,6 +37,9 @@ import { UV_CACHE_DIR, UV_DIR } from './uv';
 export interface SetupOptions {
   /** Don't ask anything: keep the current choices (or the ones below) and never delete anything. */
   yes: boolean;
+  provider?: AgentProviderId;
+  host?: string;
+  port?: number;
   music?: boolean;
   sfx?: boolean;
 }
@@ -175,6 +181,51 @@ async function ensureClaude(ask: boolean): Promise<boolean> {
   }, ask);
 }
 
+async function ensureCodex(ask: boolean): Promise<boolean> {
+  return fixUntilOk(async () => {
+    const status = await codexStatus();
+    if (!status.installed || !status.supported)
+      return {
+        ok: false,
+        label: status.installed ? 'Codex CLI needs an update' : 'Codex CLI isn’t installed',
+        why: 'The chat can use your Codex CLI and its existing ChatGPT or API-key login instead of Claude Code.',
+        fix: 'Install a current Codex CLI (0.159.0 or newer recommended) from https://developers.openai.com/codex/cli, then run: codex login',
+        fixes: [
+          {
+            label: 'Open the install guide',
+            hint: 'developers.openai.com/codex/cli',
+            run: async () => open('https://developers.openai.com/codex/cli'),
+          },
+        ],
+      };
+    if (status.loggedIn === false)
+      return {
+        ok: false,
+        label: 'Codex isn’t logged in',
+        fix: 'Run: codex login',
+        fixes: [{ label: 'Log in now', hint: 'opens your browser', run: () => withTerminal(() => run(CODEX_BIN, ['login'])) }],
+      };
+    return { ok: true, label: status.version ?? 'Codex', detail: status.loggedIn ? 'logged in' : 'couldn’t check the login' };
+  }, ask);
+}
+
+async function chooseAgent(ask: boolean, choice?: AgentProviderId): Promise<AgentProviderId> {
+  const [claude, codex] = await Promise.all([claudeStatus(), codexStatus()]);
+  const preferred =
+    choice ??
+    preferredProvider() ??
+    (claude.loggedIn ? 'claude-code' : codex.loggedIn && codex.supported ? 'codex' : 'claude-code');
+  if (!ask || choice) return preferred;
+  return select(
+    'Which agent should Storyboard use by default?',
+    [
+      { value: 'claude-code' as const, label: 'Claude Code', hint: 'your Claude login · switch in the editor any time' },
+      { value: 'codex' as const, label: 'Codex', hint: 'your Codex login · switch in the editor any time' },
+    ],
+    preferred === 'codex' ? 1 : 0,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Storyboard's own packages and headless Chromium
 
@@ -308,7 +359,7 @@ async function keepOrRemove(ask: boolean, what: string, size: number): Promise<b
 async function chooseMusic(ask: boolean, flag: boolean | undefined, before: Settings | null): Promise<EngineChoice> {
   const off: EngineChoice = { on: false, moveFrom: null, remove: false };
   const lines = railText(
-    'Claude composes original soundtracks for your videos with ACE-Step 1.5, an open music model that runs on this machine. MIT-licensed; the music can be used commercially. Without it, you can still use your own tracks.',
+    'Your agent composes original soundtracks for your videos with ACE-Step 1.5, an open music model that runs on this machine. MIT-licensed; the music can be used commercially. Without it, you can still use your own tracks.',
   );
   const unsupported = musicUnsupported();
   if (unsupported) {
@@ -636,7 +687,7 @@ async function runSetup(opts: SetupOptions): Promise<boolean> {
   const ask = !opts.yes;
   if (ask && !isInteractive()) {
     console.error('./storyboard setup asks a few questions, so run it in a terminal.');
-    console.error('In scripts: ./storyboard setup --yes [--music=on|off] [--sfx=on|off]');
+    console.error('In scripts: ./storyboard setup --yes [--provider=claude-code|codex] [--music=on|off] [--sfx=on|off]');
     return false;
   }
   setCancelHandler(() => {
@@ -662,7 +713,9 @@ async function runSetup(opts: SetupOptions): Promise<boolean> {
   rail.section('Basics');
   rail.done(`Node.js ${process.versions.node}`);
   if (!(await ensureFfmpeg(ask))) missing.push('ffmpeg (renders need it)');
-  if (!(await ensureClaude(ask))) missing.push('Claude Code, logged in (the chat needs it)');
+  const provider = await chooseAgent(ask, opts.provider);
+  if (!(await (provider === 'codex' ? ensureCodex(ask) : ensureClaude(ask))))
+    missing.push(`${provider === 'codex' ? 'Codex' : 'Claude Code'}, logged in (the chat needs it)`);
 
   rail.section('Storyboard');
   if (!(await ensurePackages())) {
@@ -672,10 +725,20 @@ async function runSetup(opts: SetupOptions): Promise<boolean> {
   if (!(await ensureChromium(ask))) missing.push('headless Chromium (previews and renders need it)');
 
   const before = readSettings();
+  const network = networkConfig({ host: opts.host ?? before?.host, port: opts.port ?? before?.port }, {});
+  const wasRunning = (await runningProcess('app')) || (await appRunning()) === 'here';
+  const previousHost = HOST;
+  const previousPort = PORT;
   const music = await chooseMusic(ask, opts.music, before);
   const sfx = await chooseSfx(ask, opts.sfx, before);
   const removals = ask ? await chooseCleanup(music, sfx) : [];
-  writeSettings({ music: music.on, sfx: sfx.on });
+  writeSettings({ music: music.on, sfx: sfx.on, provider, host: network.host, port: network.port });
+  reloadNetworkConfig();
+  rail.section('Network');
+  rail.done('Saved bind address', `${network.host} · port ${network.port}`);
+  if (HOST !== network.host || PORT !== network.port)
+    rail.warn(`HOST/PORT environment overrides are active: ${HOST} · port ${PORT}. Unset them to use the saved choices.`);
+  if (networkExposed(network.host) || networkExposed(HOST)) rail.warn(NETWORK_WARNING);
 
   const done = await apply(music, sfx, removals);
   const problems = [
@@ -691,6 +754,13 @@ async function runSetup(opts: SetupOptions): Promise<boolean> {
   const outcome = problems.length ? 'Setup finished with problems' : 'Setup done';
   const tone = problems.length ? 'warn' : 'ok';
 
+  if (wasRunning && (previousHost !== HOST || previousPort !== PORT)) {
+    rail.gap();
+    rail.warn('Network settings saved; the running app still uses its old address and port');
+    rail.hint('Apply them with ./storyboard restart app, or Ctrl+C and restart if you use npm run dev');
+    rail.close(outcome, tone);
+    return true;
+  }
   if ((await appRunning()) === 'here' && !(await runningProcess('app'))) {
     rail.gap();
     rail.warn('Storyboard is running, but wasn’t started by ./storyboard');

@@ -10,7 +10,17 @@ import { SidePanel } from './components/SidePanel';
 import { Stage } from './components/Stage';
 import { TopBar } from './components/TopBar';
 import { connectEvents } from './events';
-import { currentScene, loadProjects, openProject, selectScene, setPlaying, toastError, useEditor, userSeek } from './store';
+import {
+  currentScene,
+  loadProjects,
+  openProject,
+  selectScene,
+  setInfo,
+  setPlaying,
+  toastError,
+  useEditor,
+  userSeek,
+} from './store';
 
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
@@ -40,7 +50,7 @@ function Welcome() {
         </span>
         <h1>Make a video by describing it</h1>
         <p className="dim">
-          Every scene is a small piece of code that draws one frame at a time. Describe what you want, and Claude writes and
+          Every scene is a small piece of code that draws one frame at a time. Describe what you want, and your agent writes and
           refines it while you watch the preview.
         </p>
         <button className="btn btn-primary btn-lg" onClick={() => useEditor.setState({ modal: 'new-project' })}>
@@ -66,7 +76,7 @@ export function App() {
     const disconnect = connectEvents();
     (async () => {
       const [info, projects] = await Promise.all([api.info(), loadProjects()]);
-      useEditor.setState({ info });
+      setInfo(info);
       const [hashProject, hashScene] = decodeURIComponent(location.hash.replace(/^#\/?/, '')).split('/');
       const candidates = [hashProject, localStorage.getItem('sb:project'), projects[0]?.id];
       const id = candidates.find((x) => x && projects.some((p) => p.id === x));

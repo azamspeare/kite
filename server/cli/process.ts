@@ -11,6 +11,7 @@ export interface PidInfo {
   pid: number;
   startedAt: number;
   url: string;
+  host?: string;
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

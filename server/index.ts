@@ -3,6 +3,8 @@ import http from 'node:http';
 import path from 'node:path';
 import { getRequestListener } from '@hono/node-server';
 import { ClaudeCodeProvider } from './agents/claudeCode';
+import { CodexProvider } from './agents/codex';
+import { AgentRegistry } from './agents/registry';
 import { createApi } from './api';
 import { Capturer } from './capture';
 import { ChatManager } from './chat';
@@ -10,6 +12,7 @@ import { BASE_URL, HOST, MCP_URL, PORT, PROJECTS_DIR } from './config';
 import { Hub } from './hub';
 import { handleMcp } from './mcp';
 import { MusicEngine } from './music/engine';
+import { allowedHost, isCrossSite, NETWORK_WARNING, networkExposed } from './network';
 import { MusicLibrary } from './music/library';
 import { MusicService } from './music/service';
 import { ProjectStore } from './projects';
@@ -68,7 +71,7 @@ async function main() {
 
   const capturer = new Capturer(store);
   const seams = new SeamService(store, capturer, hub);
-  const provider = new ClaudeCodeProvider();
+  const agents = new AgentRegistry([new ClaudeCodeProvider(), new CodexProvider()]);
   const undo = new UndoStore(store);
   // The music and sound-effects engines are started with `./storyboard start`; Storyboard only watches them.
   const engine = new MusicEngine();
@@ -81,13 +84,13 @@ async function main() {
   store.soundInfo = (id) => soundLibrary.infos(id);
   const sounds = new SoundService({ store, library: soundLibrary, capturer, engine: sfx });
   const renderer = new Renderer(store, capturer, hub, sounds);
-  const chats = new ChatManager({ store, hub, provider, seams, undo, engine, sfx });
+  const chats = new ChatManager({ store, hub, agents, seams, undo, engine, sfx });
   const api = createApi({
     store,
     hub,
     seams,
     renderer,
-    provider,
+    agents,
     chats,
     library,
     music,
@@ -95,28 +98,14 @@ async function main() {
     diagnose: (file) => diagnoseFile(vite, file),
   });
   const apiListener = getRequestListener(api.fetch);
-  const localHostnames = new Set(['127.0.0.1', 'localhost', '[::1]']);
-  const isLocalHost = (host: string | undefined) => Boolean(host && localHostnames.has(host.replace(/:\d+$/, '')));
-  /** A browser request made by another website or another local port (only the editor itself may call the API). */
-  const isCrossSite = (req: http.IncomingMessage) => {
-    const site = req.headers['sec-fetch-site'];
-    if (site && site !== 'same-origin' && site !== 'none') return true;
-    const origin = req.headers.origin;
-    if (!origin) return false;
-    try {
-      return new URL(origin).host !== req.headers.host;
-    } catch {
-      return true;
-    }
-  };
 
   httpServer.on('request', (req, res) => {
     const url = req.url ?? '/';
     const isMcp = url === '/mcp' || url.startsWith('/mcp?');
     if (url.startsWith('/api/') || isMcp) {
-      // Guard the local API against DNS rebinding (Host) and against web pages sending it requests (CSRF),
-      // which could otherwise start agent turns. Non-browser clients (the MCP client, curl) send neither header.
-      if (!isLocalHost(req.headers.host)) {
+      // Guard against DNS rebinding (Host) and other websites sending requests (CSRF), even with a network bind.
+      // Non-browser clients (the MCP client, curl) need a valid Host but don't have to send Origin/Fetch Metadata.
+      if (!allowedHost(req.headers.host, HOST, req.socket.localAddress)) {
         res.writeHead(403).end('Forbidden host');
         return;
       }
@@ -139,12 +128,17 @@ async function main() {
   });
 
   httpServer.listen(PORT, HOST, async () => {
-    const status = await provider.status();
+    const { agents: available } = await agents.info();
     console.log(`\n  Storyboard  ${BASE_URL}\n`);
+    console.log(`  Listening   ${HOST} · port ${PORT}`);
+    if (networkExposed(HOST)) console.warn(`  Warning     ${NETWORK_WARNING}`);
     console.log(`  Projects    ${PROJECTS_DIR}`);
-    console.log(`  Agent       ${status.ok ? `${status.label} ${status.version ?? ''}` : `unavailable — ${status.detail}`}`);
+    for (const status of available)
+      console.log(`  Agent       ${status.ok ? `${status.label} ${status.version ?? ''}` : `unavailable — ${status.detail}`}`);
     console.log(`  MCP         ${MCP_URL}`);
-    console.log(`              claude mcp add --transport http storyboard ${MCP_URL}\n`);
+    console.log(
+      `              claude mcp add --transport http storyboard ${MCP_URL}\n              codex mcp add storyboard --url ${MCP_URL}\n`,
+    );
   });
 
   let closing = false;

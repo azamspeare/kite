@@ -12,7 +12,9 @@ npm run format
 
 Adding or upgrading a dependency is the only time to use `npm install`, and then always as `npm install --ignore-scripts <package>@<version>`. Check the `package-lock.json` diff before committing it; everyone else installs exactly what it pins with `npm ci --ignore-scripts`.
 
-**Adding another agent provider**: providers implement `AgentProvider` (`server/agents/types.ts`): take an `AgentTurn` (working directory, prompt, system prompt, session, model/effort, allowed tools, MCP servers, abort signal) and yield `AgentEvent`s (text deltas, tool starts/ends, done). `server/agents/claudeCode.ts` is the reference implementation; register a new one in `server/index.ts`. Because the tools are an MCP server, any MCP-capable agent can use them.
+**Adding another agent provider**: providers implement `AgentProvider` (`server/agents/types.ts`): take an `AgentTurn` (working directory, prompt, system prompt, session, model/effort, allowed tools, MCP servers, abort signal) and yield `AgentEvent`s (text deltas, tool starts/ends, done). `server/agents/claudeCode.ts` and `codex.ts` are the implementations; register a new one in `server/index.ts` through `AgentRegistry`. Providers also expose their status, model catalog and supported effort levels. Session ids are provider-tagged. A provider without per-file permissions must use the scoped file tools (`server/agents/files.ts`), not unrestricted shell writes. Because the tools are an MCP server, any MCP-capable agent can use them.
+
+With Codex CLI installed, run its optional integration test with `STORYBOARD_TEST_CODEX=1 node --import tsx --test server/agents/codex.integration.test.ts`. It uses a temporary Codex home and a local fake model endpoint: no saved credentials or paid model requests. It exercises real CLI tool discovery, scoped reads/edits, rejected direct writes, and session resume.
 
 ## The `storyboard` command
 

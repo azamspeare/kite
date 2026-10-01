@@ -4,11 +4,11 @@ import { SCENE_GUIDE, GUIDE_MARKER } from '../templates';
 import { formatSeconds } from '../util';
 
 /**
- * The scene guide (also written to projects/CLAUDE.md for terminal sessions). In-app turns run with
- * --restricted, which skips CLAUDE.md discovery, so the guide is always part of the system prompt.
+ * The scene guide (also written to projects/CLAUDE.md and AGENTS.md for terminal sessions).
+ * In-app agents skip instruction-file discovery, so the guide is always part of the system prompt.
  */
 function guideSection(): string {
-  return `\n\nThe Storyboard tools are MCP tools named mcp__storyboard__<name> (for example mcp__storyboard__render_frames).\n\n${SCENE_GUIDE.replace(GUIDE_MARKER, '').trim()}`;
+  return `\n\nThe Storyboard tools come from the storyboard MCP server. Use the names exposed by your tool interface, discovering deferred tools when needed.\n\n${SCENE_GUIDE.replace(GUIDE_MARKER, '').trim()}`;
 }
 
 export function sceneSystemPrompt(p: ProjectState, s: SceneState): string {

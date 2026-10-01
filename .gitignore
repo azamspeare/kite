@@ -2,7 +2,7 @@
 node_modules/
 
 # Your projects stay on your machine; only the bundled example is part of the repo.
-# (projects/CLAUDE.md is written by the app when it starts.)
+# (projects/CLAUDE.md and AGENTS.md are written by the app when it starts.)
 projects/*
 !projects/example/
 

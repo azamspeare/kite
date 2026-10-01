@@ -2,7 +2,7 @@
   "name": "storyboard",
   "private": true,
   "version": "0.1.0",
-  "description": "Prompt-driven motion design editor: every scene is code, Claude edits it down to the millisecond.",
+  "description": "Prompt-driven motion design editor: every scene is code, Claude Code or Codex edits it down to the millisecond.",
   "license": "MIT",
   "author": "Saeed Vaziry",
   "repository": {
