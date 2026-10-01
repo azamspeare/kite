@@ -1,12 +1,15 @@
-import { Clapperboard, Copy, Expand, Palette, Plus } from 'lucide-react';
+import { Clapperboard, Copy, Expand, Monitor, Moon, Palette, Plus, Sun } from 'lucide-react';
 import { api } from '../api';
-import { currentScene, openProject, toast, toastError, useEditor } from '../store';
+import { currentScene, openProject, setTheme, toast, toastError, useEditor } from '../store';
+import type { Theme } from '../theme';
 import { Segmented } from './ui';
 
 export function TopBar() {
   const projects = useEditor((s) => s.projects);
   const project = useEditor((s) => s.project);
   const view = useEditor((s) => s.view);
+  const theme = useEditor((s) => s.theme);
+  const ThemeIcon = theme === 'system' ? Monitor : theme === 'dark' ? Moon : Sun;
 
   const copyPath = async () => {
     const s = useEditor.getState();
@@ -70,6 +73,14 @@ export function TopBar() {
           </button>
         </>
       )}
+      <label className="theme-picker btn" title="Color theme">
+        <ThemeIcon size={16} aria-hidden="true" />
+        <select value={theme} onChange={(e) => setTheme(e.target.value as Theme)} aria-label="Color theme">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
     </header>
   );
 }

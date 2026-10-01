@@ -11,6 +11,7 @@ import type {
   SoundReport,
 } from '../shared/types';
 import { api, type Info } from './api';
+import { readTheme, type Theme } from './theme';
 
 export type View = 'scenes' | 'render';
 export type PreviewMode = 'scene' | 'whole';
@@ -31,6 +32,7 @@ export interface Toast {
 }
 
 interface EditorState {
+  theme: Theme;
   info: Info | null;
   projects: ProjectSummary[];
   project: ProjectState | null;
@@ -66,6 +68,7 @@ interface EditorState {
 const savedProvider = localStorage.getItem('sb:provider') ?? '';
 
 export const useEditor = create<EditorState>(() => ({
+  theme: readTheme(),
   info: null,
   projects: [],
   project: null,
@@ -95,6 +98,19 @@ export const useEditor = create<EditorState>(() => ({
 
 const set = useEditor.setState;
 const get = useEditor.getState;
+
+// ---------------------------------------------------------------------------
+// Appearance
+
+export function setTheme(theme: Theme) {
+  document.documentElement.dataset.theme = theme;
+  set({ theme });
+  try {
+    localStorage.setItem('sb:theme', theme);
+  } catch {
+    // The preference still applies for this session when storage is unavailable.
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Derived helpers
