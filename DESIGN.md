@@ -136,6 +136,10 @@ A grid on the canvas: stage and filmstrip on the left, the side panel and the ra
 - **A step** is one line: a chevron if it has details (it opens to show them, mono, on `muted/60`), a dot if not. Its label shimmers while it runs and gets a green check when done; a failed step is red with a warning icon. Once the reply is done the steps fold into "3 steps · 2 frames checked".
 - **"Working… 12s"** shimmers, after a spinner, until the reply's text arrives.
 - **The composer** is a `rounded-3xl` card: the text on top, under it the agent, model and effort as quiet selects, and one round `action` button at the right: an arrow to send, a square to stop. Enter is a new line; Command+Enter (Control+Enter) sends.
+- **"/" lists the tools** (Animate, Design, Sound, and Music in the project chat) when it is the whole input. The chosen tool sits at the start of the line in `brand-text` with its icon, changes the placeholder, stays after sending, and goes with Backspace at the start of the box.
+- **"@" lists the scenes**, each with its thumbnail and name, filtered by the number typed; choosing one writes "@Scene 2". A mention of a scene that exists is `brand-text` and a little bolder, in the box (a highlight layer drawn over a transparent-text textarea, as in Rika) and in sent messages.
+- **Both lists** open above the box as a `popover` panel at `rounded-xl`; the highlighted row is `accent`. Arrows move, Enter or Tab chooses, Esc closes.
+- **Files**: images and audio, by the **+** button, paste, or a drop on the box (the drop overlay says "Drop to attach to your message"). They upload to the project's `assets/` at once, each card with a spinner until done. An image is a 64px thumbnail; audio is a small card with a play button, its name and length. Problems show under the box in `destructive-foreground`. The agent is told the files' paths; it opens images with Read and makes audio a sound or the soundtrack with its tools.
 - **Empty**: a title and description over three suggestions as outlined `rounded-xl` rows.
 
 ### Render view

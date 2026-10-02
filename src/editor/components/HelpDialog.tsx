@@ -51,7 +51,7 @@ const PARTS: [Group<Term>[], Group<Term>[]] = [
         { name: 'Side panel', meaning: 'The tall panel on the right. The rail picks what it shows.' },
         { name: 'Rail', meaning: 'The icons at the far right: Chat, Soundtrack and Sound effects.' },
         { name: 'Chat', meaning: 'Where you ask the agent for changes, to this scene or to the whole project.' },
-        { name: 'Composer', meaning: 'The box you write in, with the agent, model, effort and Send.' },
+        { name: 'Composer', meaning: 'The box you write in: / for a tool, @ for a scene, + for files, then Send.' },
         { name: 'Soundtrack', meaning: 'The music under the video, with its beats, bars and phrases.' },
         { name: 'Sound effects', meaning: 'The sounds scenes can play, and the problems found in their cues.' },
       ],
@@ -100,6 +100,10 @@ const SHORTCUTS: [Group<Shortcut>[], Group<Shortcut>[]] = [
       rows: [
         { action: 'Send', combos: [['Mod', 'Enter']] },
         { action: 'New line', combos: [['Enter']] },
+        { action: 'Choose a tool', combos: [['/']] },
+        { action: 'Mention a scene', combos: [['@']] },
+        { action: 'Attach images or audio', combos: [['Mod', 'V'], ['Drop']] },
+        { action: 'Close a list', combos: [['Esc']] },
       ],
     },
     {

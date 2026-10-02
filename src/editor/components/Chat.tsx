@@ -1,4 +1,4 @@
-import { ArrowUpIcon, CheckIcon, ChevronRightIcon, ExclamationTriangleIcon, StopIcon } from '@heroicons/react/16/solid';
+import { CheckIcon, ChevronRightIcon, ExclamationTriangleIcon } from '@heroicons/react/16/solid';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -6,12 +6,14 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 import type { ChatMessage, ChatStep } from '../../shared/types';
-import { modelSelection, type AgentProviderId } from '../../shared/agents';
-import { api } from '../api';
-import { chatKey, currentAgent, currentScene, loadChat, setEffort, setModel, setProvider, toastError, useEditor } from '../store';
+import { chatKey, currentAgent, loadChat, toastError, useEditor } from '../store';
 import { Shimmer } from './ai/Shimmer';
+import { AttachmentCard } from './chat/AttachmentCard';
+import { Composer, attachmentUrl } from './chat/Composer';
+import { withMentions } from './chat/mentions';
+import { ToolMark } from './chat/ToolMark';
 import { KiteMark } from './Logo';
-import { Modal, Notice, Picker, RichText } from './ui';
+import { Modal, Notice, RichText } from './ui';
 
 const SCENE_IDEAS = [
   'Hold on the headline a full second longer, then slide the card in from the right.',
@@ -24,9 +26,6 @@ const PROJECT_IDEAS = [
   'Tighten the pacing: every scene should end on a bar line.',
   'Check every cut and fix the ones that jump.',
 ];
-
-/** How the send shortcut is written on this computer. */
-const SEND_SHORTCUT = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ Enter' : 'Ctrl Enter';
 
 function useElapsed(since: number | null) {
   const [now, setNow] = useState(Date.now());
@@ -231,156 +230,29 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
   );
 }
 
-/** Your turn: a grey bubble on the right, with where the playhead was when you sent it. */
+/** Your turn: any attached files, then a grey bubble on the right with the tool and the mentions marked, and the playhead under it. */
 function UserMessage({ message }: { message: ChatMessage }) {
+  const project = useEditor((s) => s.project)!;
+  const hasWords = Boolean(message.text || message.tool);
   return (
     <div className="ml-auto flex max-w-[85%] animate-in flex-col items-end gap-1 duration-150 ease-out fade-in-0 slide-in-from-bottom-1">
-      <div className="rounded-3xl bg-muted px-4 py-2 text-sm/6 wrap-anywhere whitespace-pre-wrap">{message.text}</div>
+      {message.files && message.files.length > 0 && (
+        <div className="mb-1 flex flex-wrap justify-end gap-2">
+          {message.files.map((f) => (
+            <AttachmentCard key={f.id} name={f.name} kind={f.kind} src={attachmentUrl(project.dir, f.id)} duration={f.duration} />
+          ))}
+        </div>
+      )}
+      {hasWords && (
+        <div className="rounded-3xl bg-muted px-4 py-2 text-sm/6 wrap-anywhere whitespace-pre-wrap">
+          {message.tool && <ToolMark tool={message.tool} className="mr-1.5 align-[-2px]" />}
+          {withMentions(message.text, project.scenes.length, 'font-medium text-action-text')}
+        </div>
+      )}
       {message.playhead !== undefined && (
         <p className="px-2 text-xs text-muted-foreground tabular-nums">at {message.playhead.toFixed(2)}s</p>
       )}
     </div>
-  );
-}
-
-/**
- * The box a message is written in (Rika's composer): a rounded card with the text on top and, under it,
- * the agent, model and effort on the left and one round send button on the right, which is Stop while
- * a reply is being written. Enter starts a new line; Command+Enter (Control+Enter) sends.
- */
-function Composer({ scopeKey, busy, fill }: { scopeKey: string; busy: boolean; fill: string | null }) {
-  const project = useEditor((s) => s.project)!;
-  const agent = useEditor(currentAgent);
-  const agents = useEditor((s) => s.info?.agents);
-  const savedModel = useEditor((s) => s.model);
-  const savedEffort = useEditor((s) => s.effort);
-  const { model, effort, efforts } = agent
-    ? modelSelection(agent, savedModel, savedEffort)
-    : { model: '', effort: '', efforts: [] };
-  const draftKey = `kite:draft:${project.id}/${scopeKey}`;
-  const [text, setText] = useState(() => sessionStorage.getItem(draftKey) ?? '');
-  const area = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => sessionStorage.setItem(draftKey, text), [draftKey, text]);
-  useEffect(() => {
-    if (fill) {
-      setText(fill);
-      area.current?.focus();
-    }
-  }, [fill]);
-
-  const send = async () => {
-    const value = text.trim();
-    if (!value || busy || !agent) return;
-    const s = useEditor.getState();
-    const scene = currentScene(s);
-    let playhead: number | undefined;
-    if (scopeKey === '_project') playhead = s.mode === 'whole' ? s.time : (scene?.start ?? 0) + s.time;
-    else if (scene) playhead = s.mode === 'scene' ? s.time : Math.max(0, Math.min(scene.duration, s.time - scene.start));
-    setText('');
-    try {
-      await api.send(project.id, scopeKey, { text: value, playhead, provider: agent.id, effort, model });
-    } catch (e) {
-      setText(value);
-      toastError(e);
-    }
-  };
-
-  return (
-    <form
-      className="shrink-0 p-2 pt-0"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void send();
-      }}
-    >
-      <div
-        className="flex cursor-text flex-col rounded-3xl border border-input bg-background shadow-xs transition-colors focus-within:border-ring"
-        onClick={(e) => {
-          // Clicking the card's padding puts the caret in the box, as in Rika.
-          if (e.target === e.currentTarget) area.current?.focus();
-        }}
-      >
-        <label htmlFor="composer-input" className="sr-only">
-          Message
-        </label>
-        <textarea
-          id="composer-input"
-          ref={area}
-          value={text}
-          rows={3}
-          maxLength={20000}
-          placeholder={
-            scopeKey === '_project'
-              ? 'Ask about the whole video, e.g. "Add a scene after Anatomy that shows every color variant."'
-              : 'What should change? e.g. "Hold on the headline a full second longer, then slide the card in from the right."'
-          }
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              void send();
-            }
-          }}
-          className="block max-h-56 min-h-18 w-full resize-none bg-transparent px-4 pt-3 text-sm/6 outline-none [field-sizing:content] placeholder:text-muted-foreground"
-        />
-        <div className="flex items-center gap-0.5 px-2 pt-1 pb-2">
-          <Picker
-            quiet
-            side="top"
-            label="Agent"
-            title="Agent"
-            value={agent?.id ?? ''}
-            disabled={busy || !agents?.length}
-            options={(agents ?? []).map((a) => ({ value: a.id, label: a.label }))}
-            onChange={(id) => setProvider(id as AgentProviderId)}
-          />
-          <Picker
-            quiet
-            side="top"
-            label="Model"
-            title="Model"
-            value={model}
-            options={(agent?.models ?? []).map((m) => ({ value: m.id, label: m.label }))}
-            onChange={setModel}
-          />
-          <Picker
-            quiet
-            side="top"
-            label="Effort"
-            title="Effort: how much the agent thinks before and while editing"
-            value={effort}
-            options={efforts.map((x) => ({ value: x, label: x[0].toUpperCase() + x.slice(1) }))}
-            onChange={setEffort}
-          />
-          {/* While a reply is on its way the button is Stop, so it stays enabled even with an empty box. */}
-          {busy ? (
-            <Button
-              type="button"
-              size="icon-sm"
-              aria-label="Stop"
-              title="Stop the agent"
-              onClick={() => api.stop(project.id, scopeKey).catch(toastError)}
-              className="ml-auto shrink-0 rounded-full bg-action text-white hover:bg-action/90"
-            >
-              <StopIcon />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="icon-sm"
-              aria-label="Send message"
-              aria-keyshortcuts="Meta+Enter Control+Enter"
-              title={`Send (${SEND_SHORTCUT})`}
-              disabled={!text.trim() || !agent}
-              className="ml-auto shrink-0 rounded-full bg-action text-white hover:bg-action/90"
-            >
-              <ArrowUpIcon />
-            </Button>
-          )}
-        </div>
-      </div>
-    </form>
   );
 }
 

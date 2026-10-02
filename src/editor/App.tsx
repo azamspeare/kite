@@ -11,6 +11,7 @@ import { RenderView } from './components/RenderView';
 import { SidePanel } from './components/SidePanel';
 import { Stage } from './components/Stage';
 import { Toasts } from './components/Toasts';
+import { attachToComposer } from './components/chat/Composer';
 import { connectEvents } from './events';
 import {
   currentScene,
@@ -29,6 +30,8 @@ import {
  * Whether a key belongs to what has focus rather than to the editor: a field, a picker (Base UI's select
  * trigger is a button with the combobox role), or anything inside a dialog, such as Help.
  */
+type DropZone = 'music' | 'sounds' | 'composer';
+
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
   return Boolean(
@@ -49,8 +52,11 @@ export function App() {
   const presenting = useEditor((s) => s.presenting);
   const [loaded, setLoaded] = useState(false);
   const [dropping, setDropping] = useState(false);
-  /** Files dropped on the Sound effects panel (or its rail button) become sound effects; anywhere else, the soundtrack. */
-  const [dropZone, setDropZone] = useState<'music' | 'sounds'>('music');
+  /**
+   * Files dropped on the chat's composer are attached to the message; on the Sound effects panel (or its rail
+   * button) they become sound effects; anywhere else, the soundtrack.
+   */
+  const [dropZone, setDropZone] = useState<DropZone>('music');
   const dragDepth = useRef(0);
 
   useEffect(() => {
@@ -124,7 +130,10 @@ export function App() {
   }, []);
 
   const hasFiles = (e: React.DragEvent) => e.dataTransfer.types.includes('Files');
-  const zoneOf = (e: React.DragEvent) => ((e.target as HTMLElement).closest?.('[data-drop="sounds"]') ? 'sounds' : 'music');
+  const zoneOf = (e: React.DragEvent): DropZone => {
+    const zone = (e.target as HTMLElement).closest?.<HTMLElement>('[data-drop]')?.dataset.drop;
+    return zone === 'sounds' || zone === 'composer' ? zone : 'music';
+  };
 
   const showProjects = loaded && (view === 'projects' || !project);
 
@@ -156,7 +165,9 @@ export function App() {
         setDropping(false);
         if (!project || view === 'projects') return;
         const files = [...e.dataTransfer.files];
-        if (zoneOf(e) === 'sounds') void uploadSoundFiles(files);
+        const zone = zoneOf(e);
+        if (zone === 'composer' && attachToComposer(files)) return;
+        if (zone === 'sounds') void uploadSoundFiles(files);
         else if (files[0]) void uploadMusicFile(files[0]);
       }}
     >
@@ -183,7 +194,11 @@ export function App() {
       {dropping && (
         <div className="pointer-events-none fixed inset-0 z-70 grid place-items-center bg-brand-8/70 p-3 backdrop-blur-[2px]">
           <div className="grid size-full place-items-center rounded-3xl border-2 border-dashed border-action text-base font-medium text-action-text">
-            {dropZone === 'sounds' ? 'Drop to add sound effects' : 'Drop an audio file to use it as the soundtrack'}
+            {dropZone === 'composer'
+              ? 'Drop to attach to your message'
+              : dropZone === 'sounds'
+                ? 'Drop to add sound effects'
+                : 'Drop an audio file to use it as the soundtrack'}
           </div>
         </div>
       )}

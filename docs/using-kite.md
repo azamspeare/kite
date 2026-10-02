@@ -19,6 +19,8 @@
 | Present | Plays the whole video full screen with its sound. Space pauses, ←/→ jump between scenes, Esc leaves. |
 | Help | In the footer, or press **?**: what each part of the editor is called, and every shortcut. |
 
+In the chat box, type **/** to pick what kind of change you want (**Animate**, **Design**, **Sound**, or **Music** in the Project chat), and **@** to point at a scene (`@Scene 3`). Attach images and audio with **+**, by pasting, or by dropping them on the box: they're saved in the project's `assets/` folder and the agent is told where they are. It can put an image in a scene, and turn an audio file into a sound effect or the soundtrack, whichever your message asks for.
+
 The selectors next to **Send** choose the agent (**Claude Code** or **Codex**), its model, and its supported reasoning effort. Choices are remembered separately for each provider. Claude defaults to Opus 5.5; Codex offers its CLI default plus models from its local catalog. Switching providers keeps the visible conversation and gives the new agent recent messages as context in a fresh session. Your playhead position is sent with each message, so "make this part slower" refers to what you're looking at.
 
 ## Sound effects
