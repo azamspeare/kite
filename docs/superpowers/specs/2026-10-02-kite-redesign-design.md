@@ -119,3 +119,11 @@ Renaming the CLI, docs, agent prompts or storage keys; dark mode; mobile editor;
 2. No `lucide-react` import remains; no hex or `oklch()` literal in editor components (tokens only, except the logo).
 3. The app runs (`PORT=5299 npm run dev`) and each view is checked in the browser with a screenshot: projects page, empty projects page, editor, chat during and after a turn, soundtrack panel, sound effects panel, render view, New project and Art direction dialogs, help dialog, present mode, a toast, the drop overlay.
 4. A frame renders identically before and after (one `frame.html` capture of the example project compared pixel for pixel), proving Tailwind does not reach scenes.
+
+## Changes made during the build
+
+- **Class merging** uses the `cn` package (shadcn's drop-in for `clsx` + `tailwind-merge`), as Rika does, instead of the two packages.
+- **The shadcn CLI is not installed.** Its one file Kite needs, `shadcn/tailwind.css`, is vendored as `src/editor/shadcn.css` (MIT); the CLI would bring 34 dependencies.
+- **The filmstrip sits on the canvas**, not in its own island: each tile is a small island, as in Rika's slide strip.
+- **Fonts kept:** `@fontsource-variable/inter`, `geist` and `jetbrains-mono` stay, because scene frames load them. Only `lucide-react` was removed.
+- **Address navigation:** the editor now follows hash changes (`#/projects`, `#/<project>/<scene>`), so typing an address or pasting a link works without a reload.

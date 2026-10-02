@@ -4,8 +4,10 @@
 
 | Where | What |
 | --- | --- |
+| Projects | Every project as a card, the most recently edited first; **New project** starts one. **Kite** or **Projects** in the navbar brings you back here. |
+| Navbar | The open project's name (click to rename), **Scenes** and **Render**, **Art direction**, **Copy path**, **New project** and **Present**. |
 | Filmstrip | Click a scene to open it; drag to reorder; **+ Add scene**. Badges between scenes show how many pixels change at each cut (0% = invisible). |
-| Stage | **This scene** (loops) or **Whole video**. Space = play/pause, ←/→ = one frame (Shift: 1 s), ↑/↓ = previous/next scene. Beat ticks and phrase marks appear on the scrubber when there is music; pink dots under it are sound cues (hover to see which). |
+| Stage | **This scene** (loops) or **Whole video**. Space = play/pause, ←/→ = one frame (Shift: 1 s), ↑/↓ = previous/next scene. Beat ticks and phrase marks appear on the scrubber when there is music; blue dots under it are sound cues (hover to see which). Home goes to the start. |
 | Scene tab | Chat about the selected scene; the agent may only edit that scene's file and duration. Double-click the name to rename; click the duration to type a new one. **Undo** reverts the agent's last change. |
 | Project tab | The project chat and **Check seams**. |
 | Rail | The icons at the right edge switch the right column between **Chat** (the Scene and Project tabs), **Soundtrack** and **Sound effects**. A spinner on Chat means the agent is working; a dot means it replied while another panel was open. |
@@ -14,6 +16,8 @@
 | Art direction | Palette, type scale, motion rules — the agent reads it before every edit. |
 | Copy path | Copies the scene file path (or project folder) for your editor or terminal. |
 | Render | Export an MP4 to `projects/<id>/renders/`. |
+| Present | Plays the whole video full screen with its sound. Space pauses, ←/→ jump between scenes, Esc leaves. |
+| Help | In the footer, or press **?**: what each part of the editor is called, and every shortcut. |
 
 The selectors next to **Send** choose the agent (**Claude Code** or **Codex**), its model, and its supported reasoning effort. Choices are remembered separately for each provider. Claude defaults to Opus 5.5; Codex offers its CLI default plus models from its local catalog. Switching providers keeps the visible conversation and gives the new agent recent messages as context in a fresh session. Your playhead position is sent with each message, so "make this part slower" refers to what you're looking at.
 
