@@ -6,6 +6,7 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { ChatScope } from '../src/shared/types';
 import { scopeKey } from '../src/shared/types';
 import type { AgentRegistry } from './agents/registry';
+import { saveAttachment } from './attachments';
 import type { ChatManager, SendInput } from './chat';
 import { MCP_URL, PROJECTS_DIR } from './config';
 import type { Hub } from './hub';
@@ -227,6 +228,14 @@ export function createApi({ store, hub, seams, renderer, agents, chats, diagnose
   });
 
   // Chats ---------------------------------------------------------------------
+  // A file attached in the composer: kept in assets/, and named in the message that carries it.
+  app.post('/projects/:id/attachments', async (c) => {
+    const p = await store.get(c.req.param('id'));
+    const name = decodeURIComponent(c.req.header('x-filename') ?? '');
+    const data = Buffer.from(await c.req.arrayBuffer());
+    return c.json(await saveAttachment(p.dir, name, data), 201);
+  });
+
   app.get('/projects/:id/chats/:scope', async (c) => {
     const id = c.req.param('id');
     const scope = chatScope(c.req.param('scope'));

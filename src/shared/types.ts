@@ -1,4 +1,5 @@
 import type { AgentProviderId } from './agents';
+import type { AttachmentKind, ChatToolId } from './chatOptions';
 // Data shapes shared by the server, the editor UI and the scene runtime.
 
 export interface SceneMeta {
@@ -141,6 +142,18 @@ export type ChatStep =
       images?: string[];
     };
 
+/** A file attached to a chat message, kept in the project's assets/ folder. */
+export interface Attachment {
+  /** The file's name in assets/: a 6-character random prefix, a dash, a safe stem and the extension. */
+  id: string;
+  /** The name the file had on the user's computer. */
+  name: string;
+  kind: AttachmentKind;
+  size: number;
+  /** Audio only: seconds. */
+  duration?: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -159,6 +172,12 @@ export interface ChatMessage {
   undone?: boolean;
   /** Playhead time the user was looking at when sending (user messages). */
   playhead?: number;
+  /** User messages: the "/" tool chosen for it. */
+  tool?: ChatToolId;
+  /** User messages: the files attached to it. */
+  files?: Attachment[];
+  /** User messages: the scenes it mentions with "@Scene N", as ids, in order. */
+  scenes?: string[];
 }
 
 export interface ChatThread {

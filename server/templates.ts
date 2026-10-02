@@ -47,7 +47,7 @@ This folder holds Kite video projects (a prompt-driven motion-design editor). A 
 - \`project.json\` — name, canvas size, fps, the ordered scene list (\`id\`, \`name\`, \`duration\` in seconds) and the music reference. While the app is running, change structure and timing through the Kite tools (set_scene_duration, create_scene, move_scene, …) rather than editing this file by hand.
 - \`scenes/<id>.tsx\` — one component per scene.
 - \`components/\` — optional components shared by several scenes (import them relatively).
-- \`assets/\` — images/SVGs, referenced with \`asset('file.png')\`.
+- \`assets/\` — images/SVGs, referenced with \`asset('file.png')\`. Files the user attaches in the chat land here too (images and audio); the message names them. Attached audio becomes a sound or the soundtrack only through add_sound_from_attachment / set_soundtrack_from_attachment.
 - \`art-direction.md\` — the visual rules every scene follows. Read it before designing.
 - \`music/\`, \`music.json\` — the soundtrack and its beat analysis.
 - \`sounds/\` — the sound-effect library: audio files the user adds, plus \`sounds.json\` (synth recipes and generated sounds, managed by the tools; don't edit it by hand).

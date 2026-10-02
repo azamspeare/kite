@@ -1,4 +1,5 @@
-import type { ProjectState, SceneState } from '../../src/shared/types';
+import { CHAT_TOOLS, type ChatToolId } from '../../src/shared/chatOptions';
+import type { Attachment, ProjectState, SceneState } from '../../src/shared/types';
 import { sceneMusicContext, musicSummary } from '../musicContext';
 import { SCENE_GUIDE, GUIDE_MARKER } from '../templates';
 import { formatSeconds } from '../util';
@@ -71,7 +72,63 @@ function soundLibraryLine(p: ProjectState): string {
   return `Sound library: ${names.join(', ')}${p.sounds.length > 30 ? `, … (${p.sounds.length} in all)` : ''}.`;
 }
 
-export function sceneTurnPrompt(p: ProjectState, s: SceneState, text: string, playhead?: number, sfxEngine?: string): string {
+/** What the user's message carries beyond its words: the "/" tool, attached files and mentioned scenes. */
+export interface MessageExtras {
+  tool?: ChatToolId;
+  files?: Attachment[];
+  scenes?: string[];
+}
+
+function clock(seconds: number): string {
+  const s = Math.round(seconds);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Lines for <kite_context> that point the agent at what the message mentions and carries. */
+export function messageContext(p: ProjectState, chat: 'scene' | 'project', message: MessageExtras): string[] {
+  const lines: string[] = [];
+  const mentioned = (message.scenes ?? [])
+    .map((id) => p.scenes.find((s) => s.id === id))
+    .filter((s): s is SceneState => Boolean(s));
+  if (mentioned.length) {
+    lines.push(`Mentioned: ${mentioned.map((s) => `Scene ${s.index + 1} = scenes/${s.id}.tsx ("${s.name}")`).join('; ')}.`);
+  }
+  const files = message.files ?? [];
+  if (files.length) {
+    const named = files.map((f) =>
+      f.kind === 'audio'
+        ? `assets/${f.id} (audio${f.duration !== undefined ? `, ${clock(f.duration)}` : ''}, "${f.name}")`
+        : `assets/${f.id} (image, "${f.name}")`,
+    );
+    lines.push(
+      `Attached to this message (in assets/; open images with Read, show them in a scene with asset('<file>')): ${named.join('; ')}.`,
+    );
+    if (files.some((f) => f.kind === 'audio')) {
+      lines.push(
+        chat === 'project'
+          ? 'For attached audio, use add_sound_from_attachment for a sound effect, or set_soundtrack_from_attachment for background music, as the message asks.'
+          : 'For attached audio, use add_sound_from_attachment to make it a sound effect this scene can cue (the soundtrack is set in the Project chat).',
+      );
+    }
+  }
+  const tool = CHAT_TOOLS.find((t) => t.id === message.tool);
+  if (tool) lines.push(tool.focus);
+  return lines;
+}
+
+/** The user's words, or a stand-in when the message is only files. */
+function messageText(text: string, message: MessageExtras): string {
+  return text || (message.files?.length ? 'See the attached files.' : '');
+}
+
+export function sceneTurnPrompt(
+  p: ProjectState,
+  s: SceneState,
+  text: string,
+  playhead?: number,
+  sfxEngine?: string,
+  message: MessageExtras = {},
+): string {
   const prev = p.scenes[s.index - 1];
   const next = p.scenes[s.index + 1];
   const context = [
@@ -82,11 +139,18 @@ export function sceneTurnPrompt(p: ProjectState, s: SceneState, text: string, pl
     sceneMusicContext(p, s, false),
     soundLibraryLine(p),
     sfxEngine ?? '',
+    ...messageContext(p, 'scene', message),
   ].filter(Boolean);
-  return `<kite_context>\n${context.join('\n')}\n</kite_context>\n\n${text}`;
+  return `<kite_context>\n${context.join('\n')}\n</kite_context>\n\n${messageText(text, message)}`;
 }
 
-export function projectTurnPrompt(p: ProjectState, text: string, playhead?: number, engines: string[] = []): string {
+export function projectTurnPrompt(
+  p: ProjectState,
+  text: string,
+  playhead?: number,
+  engines: string[] = [],
+  message: MessageExtras = {},
+): string {
   const context = [
     `${p.scenes.length} scenes, ${formatSeconds(p.scenes.reduce((sum, s) => sum + s.duration, 0))} total:`,
     ...p.scenes.map(
@@ -96,6 +160,7 @@ export function projectTurnPrompt(p: ProjectState, text: string, playhead?: numb
     musicSummary(p),
     soundLibraryLine(p),
     ...engines,
+    ...messageContext(p, 'project', message),
   ].filter(Boolean);
-  return `<kite_context>\n${context.join('\n')}\n</kite_context>\n\n${text}`;
+  return `<kite_context>\n${context.join('\n')}\n</kite_context>\n\n${messageText(text, message)}`;
 }

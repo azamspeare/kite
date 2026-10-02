@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import { MAX_ATTACHMENTS, isChatToolId, toolsFor } from '../src/shared/chatOptions';
 import type { ChatMessage, ChatScope, ChatStep, ChatThread, ProjectState, SceneState } from '../src/shared/types';
 import { scopeKey } from '../src/shared/types';
 import { projectSystemPrompt, projectTurnPrompt, sceneSystemPrompt, sceneTurnPrompt } from './agents/prompts';
+import { findAttachments } from './attachments';
 import type { AgentProvider, AgentTurn } from './agents/types';
 import type { AgentRegistry } from './agents/registry';
 import { SCENE_TOOLS } from './agents/tools';
@@ -28,6 +30,12 @@ export interface SendInput {
   provider?: string;
   model?: string;
   effort?: string;
+  /** The "/" tool chosen for this message. */
+  tool?: string | null;
+  /** Attachment ids (file names in assets/). */
+  files?: string[];
+  /** Scene ids the message mentions. */
+  scenes?: string[];
 }
 
 /** Chat threads per scene (and one per project), each backed by its own agent session. */
@@ -73,17 +81,35 @@ export class ChatManager {
 
   private async startTurn(projectId: string, scope: ChatScope, input: SendInput): Promise<ChatMessage> {
     const key = scopeKey(scope);
-    const text = input.text.trim();
-    if (!text) throw new HttpError(400, 'Message is empty');
+    const text = (input.text ?? '').trim();
+    const fileIds = input.files ?? [];
+    if (!text && fileIds.length === 0) throw new HttpError(400, 'Message is empty');
+    if (fileIds.length > MAX_ATTACHMENTS) throw new HttpError(400, `A message can carry at most ${MAX_ATTACHMENTS} files`);
+    const tool = input.tool ?? undefined;
+    if (tool !== undefined && !isChatToolId(tool)) throw new HttpError(400, `There is no "${tool}" tool`);
+    if (tool && !toolsFor(scope.kind).some((t) => t.id === tool)) {
+      throw new HttpError(400, 'Music is changed in the Project chat');
+    }
     if (this.isBusy(projectId, key)) throw new HttpError(409, 'The agent is still working on the previous message');
     const project = await this.deps.store.get(projectId);
     if (scope.kind === 'scene' && !project.scenes.some((s) => s.id === scope.sceneId)) {
       throw new HttpError(404, `Scene "${scope.sceneId}" not found`);
     }
+    const files = await findAttachments(project.dir, fileIds);
+    const scenes = [...new Set(input.scenes ?? [])].filter((id) => project.scenes.some((s) => s.id === id));
     const selected = await this.deps.agents.select(input);
 
     const thread = await this.thread(projectId, scope);
-    const user: ChatMessage = { id: randomUUID(), role: 'user', text, createdAt: Date.now(), playhead: input.playhead };
+    const user: ChatMessage = {
+      id: randomUUID(),
+      role: 'user',
+      text,
+      createdAt: Date.now(),
+      playhead: input.playhead,
+      ...(tool ? { tool } : {}),
+      ...(files.length ? { files } : {}),
+      ...(scenes.length ? { scenes } : {}),
+    };
     const reply: ChatMessage = {
       id: randomUUID(),
       role: 'assistant',
@@ -108,6 +134,7 @@ export class ChatManager {
       scope,
       thread,
       reply,
+      user,
       { ...input, model: selected.model, effort: selected.effort },
       selected.provider,
       abort,
@@ -161,6 +188,7 @@ export class ChatManager {
     scope: ChatScope,
     thread: ChatThread,
     reply: ChatMessage,
+    user: ChatMessage,
     input: SendInput,
     provider: AgentProvider,
     abort: AbortController,
@@ -190,11 +218,8 @@ export class ChatManager {
       const turn: AgentTurn = {
         cwd: project.dir,
         prompt: scene
-          ? sceneTurnPrompt(project, scene, input.text.trim(), input.playhead, this.deps.sfx.describe())
-          : projectTurnPrompt(project, input.text.trim(), input.playhead, [
-              this.deps.engine.describe(),
-              this.deps.sfx.describe(),
-            ]),
+          ? sceneTurnPrompt(project, scene, user.text, input.playhead, this.deps.sfx.describe(), user)
+          : projectTurnPrompt(project, user.text, input.playhead, [this.deps.engine.describe(), this.deps.sfx.describe()], user),
         systemPrompt: scene ? sceneSystemPrompt(project, scene) : projectSystemPrompt(project),
         sessionId,
         resume,
@@ -219,9 +244,12 @@ export class ChatManager {
       if (!resume) {
         const history = thread.messages
           .slice(0, -2)
-          .filter((m) => m.text && !m.undone && m.status !== 'error')
+          .filter((m) => (m.text || m.files?.length) && !m.undone && m.status !== 'error')
           .slice(-20)
-          .map((m) => `${m.role}: ${m.text}`)
+          .map((m) => {
+            const attached = m.files?.length ? `(attached: ${m.files.map((f) => `assets/${f.id}`).join(', ')})` : '';
+            return `${m.role}: ${[attached, m.text].filter(Boolean).join(' ')}`;
+          })
           .join('\n\n')
           .slice(-16000);
         if (history) turn.prompt = `<previous_chat>\n${history}\n</previous_chat>\n\n${turn.prompt}`;

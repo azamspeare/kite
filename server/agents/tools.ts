@@ -11,6 +11,7 @@ export const SCENE_TOOLS = [
   'list_sounds',
   'describe_sound',
   'create_sound',
+  'add_sound_from_attachment',
   'generate_sound',
   'check_audio',
 ];

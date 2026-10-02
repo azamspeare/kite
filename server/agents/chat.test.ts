@@ -4,7 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { test, type TestContext } from 'node:test';
+import { saveAttachment } from '../attachments';
 import { ChatManager } from '../chat';
+import { HttpError } from '../util';
 import { ProjectStore } from '../projects';
 import { UndoStore } from '../undo';
 import { writeJson } from '../util';
@@ -115,4 +117,44 @@ test('concurrent sends cannot mix providers and clearing a running turn cannot r
   await chats.clear(id, scope);
   assert.equal(turns[0].turn.signal.aborted, true);
   assert.deepEqual(await chats.thread(id, scope), { scope, sessionId: null, messages: [] });
+});
+
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+
+test('a message can carry files, a tool and scene mentions, and the agent is pointed at them', async (t) => {
+  const { chats, store, id, scope, turns, settled } = await fixture(t);
+  const p = await store.get(id);
+  const file = await saveAttachment(p.dir, 'logo.png', PNG);
+  await chats.send(id, scope, { text: '', files: [file.id], tool: 'design', scenes: [p.scenes[0].id, 'nope'] });
+  const thread = await settled();
+  const user = thread.messages.find((m) => m.role === 'user')!;
+  assert.deepEqual(
+    user.files?.map((f) => [f.id, f.name, f.kind]),
+    [[file.id, 'logo.png', 'image']],
+  );
+  assert.equal(user.tool, 'design');
+  assert.deepEqual(user.scenes, [p.scenes[0].id]);
+  assert.match(turns[0].turn.prompt, new RegExp(`assets/${file.id.replace('.', '\\.')}`));
+  assert.match(turns[0].turn.prompt, /Focus on the look/);
+  assert.match(turns[0].turn.prompt, /See the attached files\.$/);
+  // A fresh session (another provider) is told what earlier messages carried.
+  await chats.send(id, scope, { text: 'Again', provider: 'codex' });
+  await settled();
+  assert.match(turns[1].turn.prompt, new RegExp(`user: \\(attached: assets/${file.id.replace('.', '\\.')}\\)`));
+});
+
+test('a message is refused for a missing file, a tool the chat lacks, or nothing to say', async (t) => {
+  const { chats, store, id, scope } = await fixture(t);
+  const p = await store.get(id);
+  const sceneScope = { kind: 'scene', sceneId: p.scenes[0].id } as const;
+  const refused = async (promise: Promise<unknown>, pattern: RegExp) =>
+    assert.rejects(promise, (e: unknown) => e instanceof HttpError && e.status === 400 && pattern.test(e.message));
+  await refused(chats.send(id, scope, { text: 'Use it', files: ['a1b2c3-gone.png'] }), /attached file is missing/);
+  await refused(chats.send(id, sceneScope, { text: 'Score it', tool: 'music' }), /Project chat/);
+  await refused(chats.send(id, scope, { text: 'Hmm', tool: 'dance' }), /tool/);
+  await refused(chats.send(id, scope, { text: '  ' }), /empty/);
+  await refused(
+    chats.send(id, scope, { text: 'Many', files: Array.from({ length: 6 }, (_, i) => `a1b2c${i}-x.png`) }),
+    /5 files/,
+  );
 });

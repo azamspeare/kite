@@ -1,5 +1,7 @@
 import type { AgentInfo, AgentProviderId } from '../shared/agents';
+import type { ChatToolId } from '../shared/chatOptions';
 import type {
+  Attachment,
   ChatMessage,
   ChatThread,
   ProjectState,
@@ -86,6 +88,17 @@ export const api = {
     if (!res.ok || !body.name) throw new Error(body.error ?? 'Upload failed');
     return { name: body.name };
   },
+  /** Keep a file attached in the composer in the project's assets/; the message then names it. */
+  async uploadAttachment(id: string, file: File): Promise<Attachment> {
+    const res = await fetch(`${p(id)}/attachments`, {
+      method: 'POST',
+      headers: { 'x-filename': encodeURIComponent(file.name), 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    });
+    const body = (await res.json().catch(() => ({}))) as Attachment & { error?: string };
+    if (!res.ok || !body.id) throw new Error(body.error ?? `“${file.name}” could not be attached`);
+    return body;
+  },
   analyzeMusic: (id: string) => request('POST', `${p(id)}/music/analyze`),
   updateMusic: (id: string, patch: { start?: number; volume?: number }) => request('PATCH', `${p(id)}/music`, patch),
   removeMusic: (id: string) => request('DELETE', `${p(id)}/music`),
@@ -98,7 +111,18 @@ export const api = {
   send: (
     id: string,
     key: string,
-    input: { text: string; playhead?: number; provider?: string; effort?: string; model?: string },
+    input: {
+      text: string;
+      playhead?: number;
+      provider?: string;
+      effort?: string;
+      model?: string;
+      tool?: ChatToolId | null;
+      /** Attachment ids. */
+      files?: string[];
+      /** Mentioned scene ids. */
+      scenes?: string[];
+    },
   ) => request<ChatMessage>('POST', `${p(id)}/chats/${key}`, input),
   stop: (id: string, key: string) => request('POST', `${p(id)}/chats/${key}/stop`),
   undo: (id: string, key: string) => request<ChatMessage>('POST', `${p(id)}/chats/${key}/undo`),

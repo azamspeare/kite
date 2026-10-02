@@ -6,6 +6,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import type { ProjectState } from '../src/shared/types';
+import { attachmentStem, findAttachments } from './attachments';
 import type { Capturer } from './capture';
 import { ProjectFiles } from './agents/files';
 import { FILE_TOOLS, SCENE_TOOLS } from './agents/tools';
@@ -38,7 +39,7 @@ export interface ToolServices {
 const MUSIC_WAIT_MS = 100_000;
 
 /** Who is calling: the in-app scene/project chats send headers; a terminal agent session sends none. */
-interface Scope {
+export interface Scope {
   kind: 'scene' | 'project' | 'open';
   projectId?: string;
   sceneId?: string;
@@ -605,6 +606,54 @@ export function createToolServer(services: ToolServices, scope: Scope): McpServe
       if (!p.music) throw new ToolError('This project has no soundtrack.');
       await store.updateMusic(p.id, { volume: args.volume });
       return text(`The soundtrack now plays at volume ${args.volume.toFixed(2)} (was ${p.music.volume.toFixed(2)}).`);
+    },
+  );
+
+  /** An audio file attached to a chat message in this project, read from assets/. */
+  async function attachedAudio(p: ProjectState, file: string) {
+    const id = file.replace(/^assets\//, '');
+    const [attachment] = await findAttachments(p.dir, [id]).catch(() => {
+      throw new ToolError(`"${file}" is not a file attached in this project's chat (they are in assets/).`);
+    });
+    if (attachment.kind !== 'audio') throw new ToolError(`"${file}" is an image, not audio.`);
+    return { attachment, data: await fs.readFile(path.join(p.dir, 'assets', attachment.id)) };
+  }
+
+  tool(
+    'add_sound_from_attachment',
+    'Add an audio file the user attached in the chat to the sound library, so scenes can cue it by name like any other sound. Use it when the attachment is a sound effect (a hit, a click, a whoosh, a voice line). The file stays in assets/ as well.',
+    {
+      project: projectArg,
+      file: z.string().describe('The attachment, e.g. "assets/a1b2c3-whoosh.wav" (the path the message gives)'),
+      name: z.string().optional().describe("The sound's name in the library (default: the file's name)"),
+    },
+    async (args) => {
+      const p = await project(args.project);
+      const { attachment, data } = await attachedAudio(p, args.file);
+      const ext = path.extname(attachment.id);
+      const name = (args.name?.trim() || attachmentStem(attachment.id)).replace(/[\\/:*?"<>|\x00-\x1f]/g, '').slice(0, 80);
+      const sound = await soundLibrary.importFile(p.id, `${name || 'sound'}${ext}`, data);
+      return text(
+        `Added "${sound.name}" to the sound library (${formatSeconds(sound.measure.duration)}, loudest at ${formatSeconds(sound.measure.peak)}). Cue it in a scene's \`sounds\` export as sound: '${sound.name}', then run check_audio.`,
+      );
+    },
+  );
+
+  tool(
+    'set_soundtrack_from_attachment',
+    "Make an audio file the user attached in the chat the video's soundtrack (project chat only, undoable; earlier soundtracks are kept as takes). Use it when the attachment is background music. Its beats, bars and phrases are detected. `start` is where in the track the video begins (default 0). Afterwards consider snap_cuts_to_music.",
+    {
+      project: projectArg,
+      file: z.string().describe('The attachment, e.g. "assets/a1b2c3-theme.mp3" (the path the message gives)'),
+      start: z.number().min(0).optional(),
+    },
+    async (args) => {
+      assertStructural('Changing the soundtrack');
+      const p = await project(args.project);
+      const { attachment, data } = await attachedAudio(p, args.file);
+      const take = await music.importUpload(p.id, attachment.name, data);
+      if (args.start !== undefined) await store.updateMusic(p.id, { start: args.start });
+      return text(`The soundtrack is now "${attachment.name}" (take ${take.id}).\n${musicSummary(await store.get(p.id))}`);
     },
   );
 
