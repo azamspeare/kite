@@ -1,15 +1,22 @@
 import { FilmIcon, PlusIcon } from '@heroicons/react/16/solid';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Separator } from '@/components/ui/separator';
 import { posterTime } from '@/lib/scenes';
 import type { ProjectSummary } from '../../shared/types';
-import { openProject, toastError, useEditor } from '../store';
+import { loadProjects, openProject, setView, toastError, useEditor } from '../store';
 import { FrameView } from './FrameView';
 import { formatRelative } from './ui';
 
 const newProject = () => useEditor.setState({ modal: 'new-project' });
+
+/** The open project only needs showing; opening it again would drop its loaded state, such as its sound cues. */
+function open(id: string) {
+  if (useEditor.getState().project?.id === id) setView('scenes');
+  else openProject(id).catch(toastError);
+}
 
 function NewProjectButton() {
   return (
@@ -29,7 +36,7 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
   return (
     <Item
       variant="outline"
-      render={<button type="button" onClick={() => openProject(project.id).catch(toastError)} />}
+      render={<button type="button" onClick={() => open(project.id)} />}
       className="flex-col flex-nowrap items-stretch gap-0 overflow-hidden rounded-xl p-0 text-left hover:border-brand"
     >
       <div className="relative flex aspect-video items-center justify-center border-b bg-muted p-5">
@@ -80,6 +87,10 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
  */
 export function Projects() {
   const projects = useEditor((s) => s.projects);
+  // Scene counts and edit times change while another project is open, so the list is fetched again on arrival.
+  useEffect(() => {
+    loadProjects().catch(toastError);
+  }, []);
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3">
       <div className="flex grow flex-col rounded-3xl bg-background p-6 shadow-xs ring-1 ring-foreground/5 lg:p-10">

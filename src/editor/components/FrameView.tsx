@@ -88,6 +88,9 @@ export const FrameView = forwardRef<FrameHandle, Props>(function FrameView(props
       className={className}
       title={title ?? 'Scene preview'}
       loading={mode === 'thumb' ? 'lazy' : undefined}
+      // A thumbnail is a picture inside a tile or card that is itself the control: keep it out of Tab and the tile's name.
+      tabIndex={mode === 'thumb' ? -1 : undefined}
+      aria-hidden={mode === 'thumb' ? true : undefined}
     />
   );
 });

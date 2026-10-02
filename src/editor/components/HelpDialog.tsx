@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState, type ReactElement, type ReactNode } from
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
+import { useEditor } from '../store';
 
 /*
  * The help dialog, after Rika's (and the Docflare editor's): set in Assistant (`font-help`), in blocks of two
@@ -229,7 +230,9 @@ export function HelpDialog({
         event.ctrlKey ||
         event.altKey ||
         event.defaultPrevented ||
-        isTypingTarget(event.target)
+        isTypingTarget(event.target) ||
+        // Presenting is full screen: a dialog opened now would be hidden behind it and take the keyboard.
+        useEditor.getState().presenting
       ) {
         return;
       }

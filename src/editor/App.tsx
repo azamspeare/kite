@@ -25,9 +25,21 @@ import {
   userSeek,
 } from './store';
 
+/**
+ * Whether a key belongs to what has focus rather than to the editor: a field, a picker (Base UI's select
+ * trigger is a button with the combobox role), or anything inside a dialog, such as Help.
+ */
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
-  return Boolean(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable));
+  return Boolean(
+    el &&
+    (el.tagName === 'INPUT' ||
+      el.tagName === 'TEXTAREA' ||
+      el.tagName === 'SELECT' ||
+      el.isContentEditable ||
+      el.getAttribute?.('role') === 'combobox' ||
+      el.closest?.('[role="dialog"]')),
+  );
 }
 
 export function App() {
@@ -79,7 +91,7 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = useEditor.getState();
-      if (isTyping(e.target) || s.presenting || s.modal || !s.project || s.view !== 'scenes') return;
+      if (e.defaultPrevented || isTyping(e.target) || s.presenting || s.modal || !s.project || s.view !== 'scenes') return;
       const frame = 1 / s.project.fps;
       switch (e.key) {
         case ' ':
@@ -118,15 +130,17 @@ export function App() {
 
   return (
     <div
-      className="relative isolate flex h-svh w-full flex-col overflow-hidden bg-muted"
+      className="relative flex h-svh w-full flex-col overflow-hidden bg-muted"
       onDragEnter={(e) => {
         if (!hasFiles(e) || !project || view === 'projects') return;
         dragDepth.current++;
         setDropping(true);
       }}
       onDragOver={(e) => {
-        if (!hasFiles(e) || !project || view === 'projects') return;
+        if (!hasFiles(e)) return;
+        // Always claimed, so a file dropped where it has no use is ignored instead of opened by the browser.
         e.preventDefault();
+        if (!project || view === 'projects') return;
         const zone = zoneOf(e);
         if (zone !== dropZone) setDropZone(zone);
       }}
@@ -136,10 +150,11 @@ export function App() {
         if (dragDepth.current === 0) setDropping(false);
       }}
       onDrop={(e) => {
-        if (!hasFiles(e) || !project || view === 'projects') return;
+        if (!hasFiles(e)) return;
         e.preventDefault();
         dragDepth.current = 0;
         setDropping(false);
+        if (!project || view === 'projects') return;
         const files = [...e.dataTransfer.files];
         if (zoneOf(e) === 'sounds') void uploadSoundFiles(files);
         else if (files[0]) void uploadMusicFile(files[0]);
@@ -166,12 +181,13 @@ export function App() {
       {modal === 'new-project' && <NewProjectModal />}
       {presenting && project && <Present />}
       {dropping && (
-        <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center bg-brand-8/70 p-3 backdrop-blur-[2px]">
+        <div className="pointer-events-none fixed inset-0 z-70 grid place-items-center bg-brand-8/70 p-3 backdrop-blur-[2px]">
           <div className="grid size-full place-items-center rounded-3xl border-2 border-dashed border-action text-base font-medium text-action-text">
             {dropZone === 'sounds' ? 'Drop to add sound effects' : 'Drop an audio file to use it as the soundtrack'}
           </div>
         </div>
       )}
+      {/* Toasts stack above everything, dialogs (portalled to <body> at z-50) and Present (z-100) included. */}
       <Toasts />
     </div>
   );
