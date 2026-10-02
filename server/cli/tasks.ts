@@ -1,5 +1,5 @@
 // Programs setup runs (npm, git, uv, the model downloaders) shown as single steps on the rail: their output goes to
-// .storyboard/logs/setup.log, and the terminal shows one line with a spinner, what's happening, or a progress bar.
+// .kite/logs/setup.log, and the terminal shows one line with a spinner, what's happening, or a progress bar.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,8 +13,8 @@ export const SETUP_LOG = path.join(LOG_DIR, 'setup.log');
 export function startSetupLog() {
   fs.mkdirSync(LOG_DIR, { recursive: true });
   // On a fresh clone the launcher has already logged `npm ci` there.
-  if (process.env.STORYBOARD_NPM_INSTALLED === undefined) {
-    fs.writeFileSync(SETUP_LOG, `./storyboard setup, ${new Date().toString()}\n`);
+  if (process.env.KITE_NPM_INSTALLED === undefined) {
+    fs.writeFileSync(SETUP_LOG, `./kite setup, ${new Date().toString()}\n`);
   }
 }
 

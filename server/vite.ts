@@ -10,10 +10,10 @@ function isInside(dir: string, file: string): boolean {
   return Boolean(rel) && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
-/** Project files are reloaded by Storyboard itself (see ProjectStore.syncCode); keep Vite's HMR out of it. */
-function storyboardPlugin(): Plugin {
+/** Project files are reloaded by Kite itself (see ProjectStore.syncCode); keep Vite's HMR out of it. */
+function kitePlugin(): Plugin {
   return {
-    name: 'storyboard-projects',
+    name: 'kite-projects',
     hotUpdate({ file }) {
       if (isInside(PROJECTS_DIR, file)) return [];
     },
@@ -30,11 +30,11 @@ export async function createVite(httpServer: Server): Promise<ViteDevServer> {
       middlewareMode: true,
       hmr: { server: httpServer },
       fs: { allow: [ROOT, PROJECTS_DIR] },
-      watch: { ignored: ['**/.storyboard/**', '**/renders/**', '**/music/**', '**/sounds/**'] },
+      watch: { ignored: ['**/.kite/**', '**/renders/**', '**/music/**', '**/sounds/**'] },
     },
     resolve: {
       // `@/` is the editor's own code (the shadcn components import it); scenes never use it.
-      alias: { storyboard: path.join(ROOT, 'src/runtime/index.ts'), '@': path.join(ROOT, 'src/editor') },
+      alias: { kite: path.join(ROOT, 'src/runtime/index.ts'), '@': path.join(ROOT, 'src/editor') },
       dedupe: ['react', 'react-dom'],
     },
     optimizeDeps: {
@@ -42,7 +42,7 @@ export async function createVite(httpServer: Server): Promise<ViteDevServer> {
       include: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
     },
     // Tailwind only builds the editor's stylesheet (its sources are set in src/editor/styles.css), never scene frames.
-    plugins: [react(), tailwindcss(), storyboardPlugin()],
+    plugins: [react(), tailwindcss(), kitePlugin()],
   });
 }
 

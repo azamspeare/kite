@@ -21,7 +21,7 @@ export interface MusicTake {
   parentId?: string;
   repaint?: { start: number; end: number };
   createdAt: number;
-  /** Measured by Storyboard's analyzer. */
+  /** Measured by Kite's analyzer. */
   duration: number;
   bpm?: number;
   sections?: string;

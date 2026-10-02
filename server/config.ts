@@ -4,7 +4,7 @@ import { networkConfig } from './network';
 import { readSettings } from './settings';
 
 export { LOCAL_DIR, ROOT, SETTINGS_FILE } from './paths';
-export const PROJECTS_DIR = path.resolve(process.env.STORYBOARD_PROJECTS ?? path.join(ROOT, 'projects'));
+export const PROJECTS_DIR = path.resolve(process.env.KITE_PROJECTS ?? path.join(ROOT, 'projects'));
 export let { host: HOST, port: PORT, baseUrl: BASE_URL } = networkConfig(readSettings());
 export let MCP_URL = `${BASE_URL}/mcp`;
 
@@ -15,7 +15,7 @@ export function reloadNetworkConfig() {
 }
 
 /**
- * Everything `./storyboard` installs or keeps for this machine lives in the app folder (git-ignored):
+ * Everything `./kite` installs or keeps for this machine lives in the app folder (git-ignored):
  * the choices made in setup, uv and its Python, headless Chromium, the engines' API keys, PID files and logs.
  */
 export const LOG_DIR = path.join(LOCAL_DIR, 'logs');
@@ -26,31 +26,31 @@ export const BROWSERS_DIR = path.join(LOCAL_DIR, 'browsers');
 process.env.PLAYWRIGHT_BROWSERS_PATH ||= BROWSERS_DIR;
 
 /** Music engine (ACE-Step's REST API). Local by default; point it at another machine later. */
-export const MUSIC_URL = (process.env.STORYBOARD_MUSIC_URL ?? 'http://127.0.0.1:8001').replace(/\/+$/, '');
-/** The local ACE-Step install made by `./storyboard setup`: its code, Python environment and checkpoints. */
+export const MUSIC_URL = (process.env.KITE_MUSIC_URL ?? 'http://127.0.0.1:8001').replace(/\/+$/, '');
+/** The local ACE-Step install made by `./kite setup`: its code, Python environment and checkpoints. */
 export const MUSIC_DIR = path.join(ROOT, 'engines', 'music');
 export const MUSIC_PYTHON = path.join(MUSIC_DIR, '.venv', 'bin', 'python');
-/** Shared secret between Storyboard and the engine; created on first use. */
+/** Shared secret between Kite and the engine; created on first use. */
 export const MUSIC_KEY_FILE = path.join(KEYS_DIR, 'music');
 
 /** Sound-effects engine (Stable Audio Open behind engines/sfx/server.py). Local by default. */
-export const SFX_URL = (process.env.STORYBOARD_SFX_URL ?? 'http://127.0.0.1:8002').replace(/\/+$/, '');
+export const SFX_URL = (process.env.KITE_SFX_URL ?? 'http://127.0.0.1:8002').replace(/\/+$/, '');
 /** The engine's Python project (pyproject.toml, uv.lock, server.py); setup adds its .venv and the model. */
 export const SFX_DIR = path.join(ROOT, 'engines', 'sfx');
 export const SFX_PYTHON = path.join(SFX_DIR, '.venv', 'bin', 'python');
 /** The Hugging Face cache holding Stable Audio Open (server.py points HF_HUB_CACHE here). */
 export const SFX_MODELS_DIR = path.join(SFX_DIR, 'models');
-/** Shared secret between Storyboard and the sound-effects engine; created on first use. */
+/** Shared secret between Kite and the sound-effects engine; created on first use. */
 export const SFX_KEY_FILE = path.join(KEYS_DIR, 'sfx');
 
 export const FFMPEG = process.env.FFMPEG_PATH ?? 'ffmpeg';
 export const CLAUDE_BIN = process.env.CLAUDE_PATH ?? 'claude';
 export const CODEX_BIN = process.env.CODEX_PATH ?? 'codex';
 
-/** Provider-specific defaults; STORYBOARD_MODEL overrides the default provider's model. */
-export const DEFAULT_CLAUDE_MODEL = process.env.STORYBOARD_CLAUDE_MODEL ?? 'claude-opus-5-5';
-export const DEFAULT_CODEX_MODEL = process.env.STORYBOARD_CODEX_MODEL ?? 'default';
-export const DEFAULT_EFFORT = process.env.STORYBOARD_EFFORT ?? 'medium';
+/** Provider-specific defaults; KITE_MODEL overrides the default provider's model. */
+export const DEFAULT_CLAUDE_MODEL = process.env.KITE_CLAUDE_MODEL ?? 'claude-opus-5-5';
+export const DEFAULT_CODEX_MODEL = process.env.KITE_CODEX_MODEL ?? 'default';
+export const DEFAULT_EFFORT = process.env.KITE_EFFORT ?? 'medium';
 export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 /** Frames sent to the agent: 960×540 JPEG keeps a batch of frames well under MCP output limits. */
@@ -59,4 +59,4 @@ export const AGENT_FRAME_QUALITY = 82;
 export const MAX_FRAMES_PER_CALL = 8;
 
 /** Internal per-project folder (chats, undo snapshots, captured frames). */
-export const INTERNAL_DIR = '.storyboard';
+export const INTERNAL_DIR = '.kite';

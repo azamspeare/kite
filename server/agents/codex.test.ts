@@ -17,14 +17,14 @@ const turn = (overrides: Partial<AgentTurn> = {}): AgentTurn => ({
   tools: [],
   allow: [],
   mcpServers: {
-    storyboard: {
+    kite: {
       type: 'http',
       url: 'http://127.0.0.1:5199/mcp',
       headers: {
-        'X-Storyboard-Scope': 'scene',
-        'X-Storyboard-Project': 'example',
-        'X-Storyboard-Scene': 'intro',
-        'X-Storyboard-Files': 'scoped',
+        'X-Kite-Scope': 'scene',
+        'X-Kite-Project': 'example',
+        'X-Kite-Scene': 'intro',
+        'X-Kite-Files': 'scoped',
       },
     },
   },
@@ -59,7 +59,7 @@ test('Codex arguments isolate tools, scope MCP calls, encode TOML and resume onl
     assert.ok(args.includes(value), value);
   assert.ok(!args.some((x) => x.includes('dangerously')));
   const mcp = args.find((x) => x.startsWith('mcp_servers='))!;
-  assert.match(mcp, /"http_headers" = \{ "X-Storyboard-Scope" = "scene"/);
+  assert.match(mcp, /"http_headers" = \{ "X-Kite-Scope" = "scene"/);
   assert.match(mcp, /"required" = true/);
   assert.match(mcp, /"default_tools_approval_mode" = "approve"/);
   assert.match(
@@ -74,7 +74,7 @@ test('Codex arguments isolate tools, scope MCP calls, encode TOML and resume onl
 });
 
 test('Codex parser reports session, reasoning, MCP tools and frame markers without duplicating completed items', () => {
-  const tool = { id: 't', type: 'mcp_tool_call', server: 'storyboard', tool: 'render_frames', arguments: { times: [0] } };
+  const tool = { id: 't', type: 'mcp_tool_call', server: 'kite', tool: 'render_frames', arguments: { times: [0] } };
   const message = { type: 'item.completed', item: { id: 'm', type: 'agent_message', text: 'Done.' } };
   const events = parse([
     { type: 'thread.started', thread_id: 'thread-1' },
@@ -88,7 +88,7 @@ test('Codex parser reports session, reasoning, MCP tools and frame markers witho
         status: 'completed',
         result: {
           content: [
-            { type: 'text', text: '[storyboard-frames: /api/frame.jpg]' },
+            { type: 'text', text: '[kite-frames: /api/frame.jpg]' },
             { type: 'image', data: 'large-data' },
           ],
         },
@@ -103,8 +103,8 @@ test('Codex parser reports session, reasoning, MCP tools and frame markers witho
     events.map((e) => e.type),
     ['init', 'note', 'tool-start', 'tool-end', 'text', 'done'],
   );
-  assert.deepEqual(events[2], { type: 'tool-start', id: 't', name: 'mcp__storyboard__render_frames', input: { times: [0] } });
-  assert.match((events[3] as Extract<AgentEvent, { type: 'tool-end' }>).output, /storyboard-frames.*\n\[image\]/);
+  assert.deepEqual(events[2], { type: 'tool-start', id: 't', name: 'mcp__kite__render_frames', input: { times: [0] } });
+  assert.match((events[3] as Extract<AgentEvent, { type: 'tool-end' }>).output, /kite-frames.*\n\[image\]/);
   assert.deepEqual(events.at(-1), {
     type: 'done',
     text: 'Done.',
@@ -123,7 +123,7 @@ test('Codex parser handles tool failures and authentication errors without treat
       item: {
         type: 'mcp_tool_call',
         id: 't',
-        server: 'storyboard',
+        server: 'kite',
         tool: 'read_project_file',
         status: 'failed',
         error: { message: 'Denied' },
@@ -166,7 +166,7 @@ test('Codex models use the local visible catalog and each model’s effort level
 });
 
 test('Codex process streams stdin, resumes, reports crashes and stops only its own child', async (t) => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'storyboard-codex-'));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'kite-codex-'));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
   const bin = path.join(dir, 'codex');
   await fs.writeFile(

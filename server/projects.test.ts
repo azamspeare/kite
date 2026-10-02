@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { ProjectStore } from './projects';
 
 test('the project list carries what a project card shows: size and first scene', async (t) => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'storyboard-list-'));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'kite-list-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const store = new ProjectStore(root);
   await store.init();

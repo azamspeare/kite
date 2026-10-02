@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { clamp, mix, mixColor } from 'storyboard';
+import { clamp, mix, mixColor } from 'kite';
 import { CARD, MONO } from './tokens';
 
 /** The style toggles shown under the card in "Every style" (and handed off to "Every beat."). */

@@ -203,14 +203,14 @@ export class ChatManager {
         tools: ['Read', 'Edit', 'Write', 'Glob', 'Grep'],
         allow: allowRules(project, scene),
         mcpServers: {
-          storyboard: {
+          kite: {
             type: 'http',
             url: MCP_URL,
             headers: {
-              'X-Storyboard-Scope': scene ? 'scene' : 'project',
-              'X-Storyboard-Project': project.id,
-              ...(provider.id === 'codex' ? { 'X-Storyboard-Files': 'scoped' } : {}),
-              ...(scene ? { 'X-Storyboard-Scene': scene.id } : {}),
+              'X-Kite-Scope': scene ? 'scene' : 'project',
+              'X-Kite-Project': project.id,
+              ...(provider.id === 'codex' ? { 'X-Kite-Files': 'scoped' } : {}),
+              ...(scene ? { 'X-Kite-Scene': scene.id } : {}),
             },
           },
         },
@@ -325,16 +325,16 @@ function allowRules(p: ProjectState, scene: SceneState | null): string[] {
   const base = ['Read', 'Glob', 'Grep'];
   if (scene) {
     const file = abs(`scenes/${scene.id}.tsx`);
-    return [...base, `Edit(${file})`, `Write(${file})`, ...SCENE_TOOLS.map((t) => `mcp__storyboard__${t}`)];
+    return [...base, `Edit(${file})`, `Write(${file})`, ...SCENE_TOOLS.map((t) => `mcp__kite__${t}`)];
   }
   const writable = ['scenes/**', 'components/**', 'art-direction.md'].flatMap((rel) => [
     `Edit(${abs(rel)})`,
     `Write(${abs(rel)})`,
   ]);
-  return [...base, ...writable, 'mcp__storyboard__*'];
+  return [...base, ...writable, 'mcp__kite__*'];
 }
 
-const MCP_PREFIX = 'mcp__storyboard__';
+const MCP_PREFIX = 'mcp__kite__';
 
 function describeTool(name: string, input: Record<string, unknown>, p: ProjectState): string {
   const rel = (value: unknown) => (typeof value === 'string' ? path.relative(p.dir, value) || value : '');
@@ -422,7 +422,7 @@ function describeTool(name: string, input: Record<string, unknown>, p: ProjectSt
 }
 
 function stripMarker(output: string): string {
-  return output.replace(/\n?\[storyboard-frames:[^\]]*\]/g, '').trim();
+  return output.replace(/\n?\[kite-frames:[^\]]*\]/g, '').trim();
 }
 
 function summarizeOutput(name: string, output: string, isError: boolean): string | undefined {
@@ -464,7 +464,7 @@ function summarizeOutput(name: string, output: string, isError: boolean): string
 
 function frameUrls(output: string): string[] {
   const urls: string[] = [];
-  for (const match of output.matchAll(/\[storyboard-frames:([^\]]*)\]/g)) {
+  for (const match of output.matchAll(/\[kite-frames:([^\]]*)\]/g)) {
     urls.push(
       ...match[1]
         .trim()

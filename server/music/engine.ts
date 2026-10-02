@@ -42,7 +42,7 @@ export interface EngineHealth {
   lmModel?: string;
 }
 
-/** off: turned off in `./storyboard setup`. */
+/** off: turned off in `./kite setup`. */
 export type EngineState = 'off' | 'not-installed' | 'stopped' | 'loading' | 'ready';
 
 export function isLocalUrl(url: string): boolean {
@@ -60,7 +60,7 @@ const WEIGHTS = [
   'diffusion_pytorch_model.safetensors.index.json',
 ];
 
-/** Whether `./storyboard setup` has installed the engine in engines/music. */
+/** Whether `./kite setup` has installed the engine in engines/music. */
 export function engineInstalled(): boolean {
   return (
     fs.existsSync(MUSIC_PYTHON) &&
@@ -68,9 +68,9 @@ export function engineInstalled(): boolean {
   );
 }
 
-/** The engine's API key: STORYBOARD_MUSIC_API_KEY, or a random key kept in .storyboard/keys. */
+/** The engine's API key: KITE_MUSIC_API_KEY, or a random key kept in .kite/keys. */
 export function musicApiKey(): string {
-  if (process.env.STORYBOARD_MUSIC_API_KEY) return process.env.STORYBOARD_MUSIC_API_KEY;
+  if (process.env.KITE_MUSIC_API_KEY) return process.env.KITE_MUSIC_API_KEY;
   try {
     const key = fs.readFileSync(MUSIC_KEY_FILE, 'utf8').trim();
     if (key) return key;
@@ -100,8 +100,8 @@ export async function engineHealth(url = MUSIC_URL): Promise<EngineHealth | null
 }
 
 /**
- * Watches the ACE-Step music engine (started with `./storyboard start`) and talks to its REST API.
- * Storyboard never starts or stops the engine itself; it only offers music tools while it is ready.
+ * Watches the ACE-Step music engine (started with `./kite start`) and talks to its REST API.
+ * Kite never starts or stops the engine itself; it only offers music tools while it is ready.
  */
 export class MusicEngine {
   private state: EngineState = 'stopped';
@@ -141,11 +141,11 @@ export class MusicEngine {
       case 'loading':
         return 'Music engine: starting up (loading models) — music tools become available on the next message.';
       case 'off':
-        return "Music generation: turned off by the user in setup — music tools are unavailable. Don't offer to compose music (the user can drop in their own track); only if they ask for generated music, tell them `./storyboard setup` in a terminal turns it on.";
+        return "Music generation: turned off by the user in setup — music tools are unavailable. Don't offer to compose music (the user can drop in their own track); only if they ask for generated music, tell them `./kite setup` in a terminal turns it on.";
       case 'not-installed':
-        return 'Music engine: not set up — music tools are unavailable. If the user wants Claude to compose music, tell them to run `./storyboard setup` in a terminal and turn on music generation.';
+        return 'Music engine: not set up — music tools are unavailable. If the user wants Claude to compose music, tell them to run `./kite setup` in a terminal and turn on music generation.';
       default:
-        return 'Music engine: stopped — music tools are unavailable. If the user wants music, ask them to run `./storyboard start music` in a terminal, then send the request again.';
+        return 'Music engine: stopped — music tools are unavailable. If the user wants music, ask them to run `./kite start music` in a terminal, then send the request again.';
     }
   }
 
@@ -179,7 +179,7 @@ export class MusicEngine {
 
   /** Queue a generation; returns the engine's task id. */
   async submit(req: EngineRequest): Promise<string> {
-    if (!this.isReady()) throw new Error('The music engine is not running. Start it with `./storyboard start music`.');
+    if (!this.isReady()) throw new Error('The music engine is not running. Start it with `./kite start music`.');
     const fields: Record<string, string | number | boolean> = {
       task_type: req.task,
       prompt: req.prompt,

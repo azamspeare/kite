@@ -76,7 +76,7 @@ export class ClaudeCodeProvider implements AgentProvider {
     // Music tools can wait ~100 s for the engine; allow tool calls up to 5 minutes.
     const env: NodeJS.ProcessEnv = { ...process.env, MAX_MCP_OUTPUT_TOKENS: '120000', MCP_TOOL_TIMEOUT: '300000' };
     // Use the Claude Code login (subscription) unless the user explicitly opts into an API key.
-    if (!process.env.STORYBOARD_USE_API_KEY) delete env.ANTHROPIC_API_KEY;
+    if (!process.env.KITE_USE_API_KEY) delete env.ANTHROPIC_API_KEY;
 
     const child = spawn(CLAUDE_BIN, args, { cwd: turn.cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
     child.stdin.on('error', () => undefined);
@@ -89,8 +89,8 @@ export class ClaudeCodeProvider implements AgentProvider {
       if (event.type === 'done') finished = true;
       queue.push(event);
     });
-    // STORYBOARD_AGENT_LOG=/path/file.jsonl records the raw stream for debugging.
-    const log = process.env.STORYBOARD_AGENT_LOG ? fs.createWriteStream(process.env.STORYBOARD_AGENT_LOG, { flags: 'a' }) : null;
+    // KITE_AGENT_LOG=/path/file.jsonl records the raw stream for debugging.
+    const log = process.env.KITE_AGENT_LOG ? fs.createWriteStream(process.env.KITE_AGENT_LOG, { flags: 'a' }) : null;
     readline.createInterface({ input: child.stdout }).on('line', (line) => {
       log?.write(`${line}\n`);
       parser.line(line);

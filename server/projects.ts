@@ -47,7 +47,8 @@ export class ProjectStore {
       const guidePath = path.join(this.root, name);
       const current = await fs.readFile(guidePath, 'utf8').catch(() => null);
       // Refresh the guide while it is still ours (any version of the managed marker); leave user-edited copies alone.
-      if (current === null || (/<!-- storyboard:managed-guide v\d+ -->/.test(current) && current !== SCENE_GUIDE)) {
+      // A guide written before the rename to Kite carries the old marker; it is still the app's to replace.
+      if (current === null || (/<!-- (kite|storyboard):managed-guide v\d+ -->/.test(current) && current !== SCENE_GUIDE)) {
         await writeFileAtomic(guidePath, SCENE_GUIDE);
       }
     }
@@ -141,7 +142,7 @@ export class ProjectStore {
     }
     const artDirection = await fs.readFile(path.join(dir, 'art-direction.md'), 'utf8').catch(() => '');
     const sounds = await this.soundInfo(id).catch((e: Error) => {
-      console.warn(`[storyboard] sounds of ${id}: ${e.message}`);
+      console.warn(`[kite] sounds of ${id}: ${e.message}`);
       return [];
     });
     return {

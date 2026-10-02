@@ -13,7 +13,7 @@ describe('parseServices', () => {
     assert.deepEqual(parseServices(['music', '-f']), ['music']);
     assert.deepEqual(parseServices([]), []);
     assert.deepEqual(parseServices(['all']), ['app', 'music', 'sfx']);
-    assert.deepEqual(parseServices(['storyboard', 'app']), ['app']);
+    assert.deepEqual(parseServices(['kite', 'app']), ['app']);
   });
 
   it('rejects anything else', () => {
@@ -53,7 +53,7 @@ describe('parseSetup', () => {
 });
 
 describe('venvIsOurs', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'storyboard-venv-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kite-venv-'));
   const venv = (home: string) => {
     const dir = fs.mkdtempSync(path.join(tmp, 'venv-'));
     fs.writeFileSync(path.join(dir, 'pyvenv.cfg'), `home = ${home}\nversion_info = 3.12\n`);

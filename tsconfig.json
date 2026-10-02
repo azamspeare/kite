@@ -13,7 +13,7 @@
     "resolveJsonModule": true,
     "types": ["node", "vite/client"],
     "paths": {
-      "storyboard": ["./src/runtime/index.ts"],
+      "kite": ["./src/runtime/index.ts"],
       "@/*": ["./src/editor/*"]
     }
   },

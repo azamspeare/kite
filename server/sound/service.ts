@@ -114,7 +114,7 @@ function limiterIn(result: MixResult, from: number, to: number): MixResult['limi
 }
 
 async function withTempWav<T>(audio: Stereo, fn: (file: string) => Promise<T>): Promise<T> {
-  const file = path.join(os.tmpdir(), `sb-sound-${randomUUID().slice(0, 8)}.wav`);
+  const file = path.join(os.tmpdir(), `kite-sound-${randomUUID().slice(0, 8)}.wav`);
   await fs.writeFile(file, encodeWav(audio));
   try {
     return await fn(file);
@@ -341,7 +341,7 @@ export class SoundService {
     const sounds: LibrarySound[] = [];
     for (const [i, clip] of result.clips.entries()) {
       const name = result.clips.length === 1 ? input.name : `${input.name}-${String.fromCharCode(97 + i)}`;
-      const file = path.join(os.tmpdir(), `sb-sfx-${randomUUID().slice(0, 8)}.wav`);
+      const file = path.join(os.tmpdir(), `kite-sfx-${randomUUID().slice(0, 8)}.wav`);
       await fs.writeFile(file, clip);
       try {
         const audio = tidy(await decodeFile(file, { sampleRate: SOUND_SAMPLE_RATE }));

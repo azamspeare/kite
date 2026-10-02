@@ -1,4 +1,4 @@
-// Background processes started by ./storyboard: PID files, "is it still ours?", memory, logs,
+// Background processes started by ./kite: PID files, "is it still ours?", memory, logs,
 // waiting until a service is ready, and stopping it again.
 import { execFile, spawn } from 'node:child_process';
 import fs from 'node:fs';

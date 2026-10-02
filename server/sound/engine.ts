@@ -34,12 +34,12 @@ export interface SfxResult {
   clips: Buffer[];
 }
 
-/** off: turned off in `./storyboard setup`. */
+/** off: turned off in `./kite setup`. */
 export type SfxEngineState = 'off' | 'not-installed' | 'stopped' | 'loading' | 'unusable' | 'ready';
 
 const GENERATE_TIMEOUT_MS = 5 * 60 * 1000;
 
-/** The Python environment `./storyboard setup` creates in engines/sfx. */
+/** The Python environment `./kite setup` creates in engines/sfx. */
 export function sfxEngineInstalled(): boolean {
   return fs.existsSync(SFX_PYTHON);
 }
@@ -55,7 +55,7 @@ const MODEL_FILES = [
   'projection_model/diffusion_pytorch_model.safetensors',
 ];
 
-/** Whether `./storyboard setup` has downloaded Stable Audio Open into engines/sfx/models (a Hugging Face cache). */
+/** Whether `./kite setup` has downloaded Stable Audio Open into engines/sfx/models (a Hugging Face cache). */
 export function sfxModelDownloaded(): boolean {
   const repo = path.join(SFX_MODELS_DIR, 'models--stabilityai--stable-audio-open-1.0');
   try {
@@ -66,9 +66,9 @@ export function sfxModelDownloaded(): boolean {
   }
 }
 
-/** The engine's API key: STORYBOARD_SFX_API_KEY, or a random key kept in .storyboard/keys. */
+/** The engine's API key: KITE_SFX_API_KEY, or a random key kept in .kite/keys. */
 export function sfxApiKey(): string {
-  if (process.env.STORYBOARD_SFX_API_KEY) return process.env.STORYBOARD_SFX_API_KEY;
+  if (process.env.KITE_SFX_API_KEY) return process.env.KITE_SFX_API_KEY;
   try {
     const key = fs.readFileSync(SFX_KEY_FILE, 'utf8').trim();
     if (key) return key;
@@ -99,8 +99,8 @@ export async function sfxEngineHealth(url = SFX_URL): Promise<SfxHealth | null> 
 }
 
 /**
- * Watches the sound-effects engine (started with `./storyboard start`) and talks to its HTTP API.
- * Storyboard never starts or stops the engine itself; it only offers generate_sound while it is ready.
+ * Watches the sound-effects engine (started with `./kite start`) and talks to its HTTP API.
+ * Kite never starts or stops the engine itself; it only offers generate_sound while it is ready.
  */
 export class SfxEngine {
   private state: SfxEngineState = 'stopped';
@@ -144,17 +144,17 @@ export class SfxEngine {
       case 'unusable':
         return `Sound-effects engine: running but not usable (${this.health?.error ?? 'unknown error'}) — generate_sound is unavailable; ${synth}. Tell the user if they want AI-generated sounds.`;
       case 'off':
-        return `Sound-effects generation: turned off by the user in setup — generate_sound is unavailable; ${synth}. Don't offer AI-generated sounds; only if the user asks for them, tell them \`./storyboard setup\` in a terminal turns them on.`;
+        return `Sound-effects generation: turned off by the user in setup — generate_sound is unavailable; ${synth}. Don't offer AI-generated sounds; only if the user asks for them, tell them \`./kite setup\` in a terminal turns them on.`;
       case 'not-installed':
-        return `Sound-effects engine: not set up — generate_sound is unavailable; ${synth}. If realistic or very specific sounds are wanted, tell the user to run \`./storyboard setup\` in a terminal and turn on sound-effects generation.`;
+        return `Sound-effects engine: not set up — generate_sound is unavailable; ${synth}. If realistic or very specific sounds are wanted, tell the user to run \`./kite setup\` in a terminal and turn on sound-effects generation.`;
       default:
-        return `Sound-effects engine: stopped — generate_sound is unavailable; ${synth}. If the user wants AI-generated sounds, ask them to run \`./storyboard start sfx\` in a terminal, then send the request again.`;
+        return `Sound-effects engine: stopped — generate_sound is unavailable; ${synth}. If the user wants AI-generated sounds, ask them to run \`./kite start sfx\` in a terminal, then send the request again.`;
     }
   }
 
   /** Generate sound effects from a text prompt; one WAV per variation. */
   async generate(req: SfxRequest): Promise<SfxResult> {
-    if (!this.isReady()) throw new Error('The sound-effects engine is not running. Start it with `./storyboard start sfx`.');
+    if (!this.isReady()) throw new Error('The sound-effects engine is not running. Start it with `./kite start sfx`.');
     let res: Response;
     try {
       res = await fetch(`${SFX_URL}/generate`, {

@@ -42,7 +42,7 @@ function hfHome(): string {
   return process.env.HF_HOME ?? path.join(process.env.XDG_CACHE_HOME ?? path.join(os.homedir(), '.cache'), 'huggingface');
 }
 
-/** The model in Hugging Face's shared cache, where it was downloaded before ./storyboard existed. */
+/** The model in Hugging Face's shared cache, where Storyboard (the project Kite is built from) downloaded it before its launcher existed. */
 export function legacySfxModel(): string | null {
   const dir = path.join(process.env.HF_HUB_CACHE ?? path.join(hfHome(), 'hub'), CACHED_MODEL);
   return fs.existsSync(path.join(dir, 'snapshots')) ? dir : null;
@@ -125,7 +125,7 @@ export async function installSfx(opts: { token: string | null; moveModelFrom: st
       watch: { paths: [cached], total },
     });
     if (step.code !== 0 || !sfxModelDownloaded()) {
-      stepFailed(task, 'download failed · run ./storyboard setup again to resume', step.tail);
+      stepFailed(task, 'download failed · run ./kite setup again to resume', step.tail);
       return false;
     }
     task.done(total ? formatSize(total) : '');

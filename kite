@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Storyboard's command-line tool: ./storyboard help
+# Kite's command-line tool: ./kite help
 # This script makes sure Node.js and the npm packages are in place, then runs the command (server/cli/main.ts).
 set -euo pipefail
 
@@ -41,11 +41,11 @@ node_ok() {
 }
 
 if ! node_ok; then
-  open_rail Storyboard
+  open_rail Kite
   if command -v node >/dev/null 2>&1; then
-    printf '%s  %s\n' "$bar" "${red}✗${reset} Storyboard needs Node.js 22.12 or newer; this is $(node --version)"
+    printf '%s  %s\n' "$bar" "${red}✗${reset} Kite needs Node.js 22.12 or newer; this is $(node --version)"
   else
-    printf '%s  %s\n' "$bar" "${red}✗${reset} Storyboard needs Node.js 22.12 or newer, and it isn't installed"
+    printf '%s  %s\n' "$bar" "${red}✗${reset} Kite needs Node.js 22.12 or newer, and it isn't installed"
   fi
   if [ "$(uname)" = Darwin ] && command -v brew >/dev/null 2>&1 && ask "Install it with Homebrew now? (brew install node)"; then
     brew install node
@@ -60,14 +60,14 @@ fi
 # A fresh clone: install the npm packages first (exact versions from package-lock.json; no install scripts run).
 if [ ! -e node_modules/tsx/package.json ]; then
   if [ "${1:-}" != setup ]; then
-    open_rail Storyboard
-    close_rail "Not set up yet · run ${cyan}./storyboard setup${reset}"
+    open_rail Kite
+    close_rail "Not set up yet · run ${cyan}./kite setup${reset}"
     exit 1
   fi
-  mkdir -p .storyboard/logs
-  log=.storyboard/logs/setup.log
-  echo "./storyboard setup, $(date)" >"$log"
-  open_rail "Storyboard setup"
+  mkdir -p .kite/logs
+  log=.kite/logs/setup.log
+  echo "./kite setup, $(date)" >"$log"
+  open_rail "Kite setup"
   npm ci --ignore-scripts --no-audit --no-fund >>"$log" 2>&1 &
   pid=$!
   frames=(◒ ◐ ◓ ◑)
@@ -85,8 +85,8 @@ if [ ! -e node_modules/tsx/package.json ]; then
     exit 1
   fi
   # setup.ts carries on from here: it continues the rail and says how many packages were installed.
-  STORYBOARD_NPM_INSTALLED="$(grep -oE 'added [0-9]+ packages?' "$log" | grep -oE '[0-9]+' | tail -n 1 || true)"
-  export STORYBOARD_RAIL=open STORYBOARD_NPM_INSTALLED
+  KITE_NPM_INSTALLED="$(grep -oE 'added [0-9]+ packages?' "$log" | grep -oE '[0-9]+' | tail -n 1 || true)"
+  export KITE_RAIL=open KITE_NPM_INSTALLED
 fi
 
 exec node --import tsx server/cli/main.ts "$@"

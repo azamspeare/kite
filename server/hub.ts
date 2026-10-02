@@ -48,7 +48,7 @@ export class Hub {
       setTimeout(() => {
         this.pending.delete(projectId);
         this.send({ type: 'project-changed', projectId });
-        this.toFrames('sb:project-changed', { projectId });
+        this.toFrames('kite:project-changed', { projectId });
       }, 40),
     );
   }

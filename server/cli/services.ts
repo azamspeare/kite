@@ -1,4 +1,4 @@
-// ./storyboard start | stop | restart | status | logs: Storyboard itself and the optional engines, run in the background.
+// ./kite start | stop | restart | status | logs: Kite itself and the optional engines, run in the background.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -39,7 +39,7 @@ import { BAR, bold, cyan, dim, formatDuration, gray, green, LiveRows, rail, red,
 
 export type ServiceId = 'app' | 'music' | 'sfx';
 export const SERVICES: ServiceId[] = ['app', 'music', 'sfx'];
-export const NAMES: Record<ServiceId, string> = { app: 'Storyboard', music: 'Music engine', sfx: 'Sound-effects engine' };
+export const NAMES: Record<ServiceId, string> = { app: 'Kite', music: 'Music engine', sfx: 'Sound-effects engine' };
 const URLS: Record<ServiceId, string> = {
   get app() {
     return BASE_URL;
@@ -48,7 +48,10 @@ const URLS: Record<ServiceId, string> = {
   sfx: SFX_URL,
 };
 
-/** Before ./storyboard existed, `npm run music|sfx start` kept the engines' PID files and logs here. */
+/**
+ * Before the launcher existed, `npm run music|sfx start` kept the engines' PID files and logs here. That was
+ * Storyboard, the project Kite is built from, so the folder keeps its old name: setup offers to clean it up.
+ */
 export const LEGACY_STATE_DIR = path.join(os.homedir(), '.config', 'storyboard');
 
 const pidFiles = (id: ServiceId) => [
@@ -72,7 +75,7 @@ export interface Running extends PidInfo {
   logFile: string;
 }
 
-/** The process of a service that ./storyboard started (or the npm scripts before it), if it's still running. */
+/** The process of a service that ./kite started (or the npm scripts before it), if it's still running. */
 export async function runningProcess(id: ServiceId): Promise<Running | null> {
   for (const [i, file] of pidFiles(id).entries()) {
     const info = readPid(file);
@@ -106,7 +109,7 @@ export async function probe(id: ServiceId): Promise<Probe | null> {
   return { phase: 'loading the model', ready: false, fatal: !h.loading && h.error ? h.error : undefined };
 }
 
-/** Is Storyboard answering on PORT, and is it this copy of it? */
+/** Is Kite answering on PORT, and is it this copy of it? */
 export async function appRunning(): Promise<'here' | 'elsewhere' | null> {
   const info = await appInfo();
   return !info ? null : path.resolve(info.projectsDir) === PROJECTS_DIR ? 'here' : 'elsewhere';
@@ -195,34 +198,33 @@ async function launch(id: ServiceId): Promise<Launch> {
     return {
       state: 'failed',
       reason: `already running at ${mine.url} with different network settings`,
-      hint: 'Apply the saved address and port with ./storyboard restart app',
+      hint: 'Apply the saved address and port with ./kite restart app',
     };
   }
   const answer = await probe(id);
   if (id === 'app' && answer && (await appRunning()) === 'elsewhere') {
     return {
       state: 'failed',
-      reason: `port ${PORT} is taken by a Storyboard in another folder`,
-      hint: 'Stop that one, or start this one on another port: PORT=5299 ./storyboard start',
+      reason: `port ${PORT} is taken by a Kite in another folder`,
+      hint: 'Stop that one, or start this one on another port: PORT=5299 ./kite start',
     };
   }
-  if (answer?.ready)
-    return { state: 'running', note: mine ? 'already running' : 'already running (not started by ./storyboard)' };
+  if (answer?.ready) return { state: 'running', note: mine ? 'already running' : 'already running (not started by ./kite)' };
   if (answer || mine) return { state: 'waiting', pid: mine?.pid ?? null };
   if (id !== 'app' && !(id === 'music' ? engineInstalled() : sfxEngineInstalled() && sfxModelDownloaded())) {
     return readSettings()?.[id]
-      ? { state: 'failed', reason: 'on, but not installed yet', hint: 'Run ./storyboard setup to finish installing it' }
-      : { state: 'failed', reason: 'turned off', hint: 'Turn it on with ./storyboard setup' };
+      ? { state: 'failed', reason: 'on, but not installed yet', hint: 'Run ./kite setup to finish installing it' }
+      : { state: 'failed', reason: 'turned off', hint: 'Turn it on with ./kite setup' };
   }
   if (id === 'app' && !(await portFree(PORT))) {
     return {
       state: 'failed',
       reason: `port ${PORT} is used by another program`,
-      hint: 'Try another port: PORT=5299 ./storyboard start',
+      hint: 'Try another port: PORT=5299 ./kite start',
     };
   }
   const pid = spawnService(id);
-  return pid ? { state: 'waiting', pid } : { state: 'failed', reason: "couldn't be started", hint: `./storyboard logs ${id}` };
+  return pid ? { state: 'waiting', pid } : { state: 'failed', reason: "couldn't be started", hint: `./kite logs ${id}` };
 }
 
 function hasChromium(): boolean {
@@ -239,12 +241,12 @@ function hasChromium(): boolean {
  */
 export async function start(ids: ServiceId[], opts: { embedded?: boolean } = {}): Promise<boolean> {
   if (!opts.embedded) {
-    rail.open('Starting Storyboard');
+    rail.open('Starting Kite');
     rail.gap();
   }
   if (ids.includes('app') && !hasChromium()) {
     rail.warn('Headless Chromium is missing, so previews and renders will fail');
-    rail.hint('./storyboard setup installs it');
+    rail.hint('./kite setup installs it');
   }
   const launched: Launch[] = [];
   for (const id of ids) launched.push(await launch(id));
@@ -270,7 +272,7 @@ export async function start(ids: ServiceId[], opts: { embedded?: boolean } = {})
       if (result.outcome === 'ready') return rows.set(i, 'ok', `ready in ${formatDuration(result.seconds)}`);
       if (result.outcome === 'timeout') {
         rows.set(i, 'warn', `still starting after ${formatDuration(result.seconds)}`);
-        afterwards.push({ hint: `It keeps going in the background; check with ./storyboard status` });
+        afterwards.push({ hint: `It keeps going in the background; check with ./kite status` });
         return;
       }
       if (result.outcome === 'failed') {
@@ -279,7 +281,7 @@ export async function start(ids: ServiceId[], opts: { embedded?: boolean } = {})
         if (mine) await stopGroup(mine.pid);
       }
       rows.set(i, 'fail', result.outcome === 'failed' ? `can't run: ${result.fatal}` : 'stopped while starting');
-      afterwards.push({ tail: tail(logFiles(id)[0], 8).split('\n').filter(Boolean), hint: `./storyboard logs ${id}` });
+      afterwards.push({ tail: tail(logFiles(id)[0], 8).split('\n').filter(Boolean), hint: `./kite logs ${id}` });
     }),
   );
   rows.stop();
@@ -295,7 +297,7 @@ export async function start(ids: ServiceId[], opts: { embedded?: boolean } = {})
 async function closeStart(ids: ServiceId[], ok: boolean) {
   if (ids.includes('app') && (await probe('app'))) {
     rail.close(
-      `${ok ? '' : 'Partly started · '}Open ${cyan(BASE_URL)}  ${dim('· stop it with ./storyboard stop')}`,
+      `${ok ? '' : 'Partly started · '}Open ${cyan(BASE_URL)}  ${dim('· stop it with ./kite stop')}`,
       ok ? 'ok' : 'warn',
     );
   } else {
@@ -305,7 +307,7 @@ async function closeStart(ids: ServiceId[], ok: boolean) {
 
 /** Stop, then start again, as one block. */
 export async function restart(stopIds: ServiceId[], startIds: ServiceId[]): Promise<boolean> {
-  rail.open('Restarting Storyboard');
+  rail.open('Restarting Kite');
   rail.gap();
   await stop(stopIds, { embedded: true, quiet: true });
   const ok = await start(startIds, { embedded: true });
@@ -313,10 +315,10 @@ export async function restart(stopIds: ServiceId[], startIds: ServiceId[]): Prom
   return ok;
 }
 
-/** Stop what ./storyboard started; anything else is left alone. */
+/** Stop what ./kite started; anything else is left alone. */
 export async function stop(ids: ServiceId[], opts: { embedded?: boolean; quiet?: boolean } = {}): Promise<void> {
   if (!opts.embedded) {
-    rail.open('Stopping Storyboard');
+    rail.open('Stopping Kite');
     rail.gap();
   }
   const targets = await Promise.all(ids.map(async (id) => ({ id, mine: await runningProcess(id) })));
@@ -335,7 +337,7 @@ export async function stop(ids: ServiceId[], opts: { embedded?: boolean; quiet?:
   }
   for (const { id } of targets.filter((t) => !t.mine)) {
     if (id !== 'app' && !isLocalUrl(URLS[id])) continue;
-    if (await probe(id)) rail.warn(`${NAMES[id]} wasn't started by ./storyboard, so it's still running`);
+    if (await probe(id)) rail.warn(`${NAMES[id]} wasn't started by ./kite, so it's still running`);
     else if (!opts.quiet) rail.info(`${NAMES[id]} wasn't running`);
   }
   if (!opts.embedded) rail.close(ours.length ? 'Stopped' : 'Nothing was running');
@@ -345,24 +347,24 @@ const uptime = (since: number) => formatDuration((Date.now() - since) / 1000);
 
 export async function status(): Promise<void> {
   const settings = readSettings();
-  rail.open('Storyboard status');
+  rail.open('Kite status');
   rail.gap();
   const rows: [label: string, dot: string, state: string, detail: string][] = [];
   const app = await appRunning();
   const appMine = await runningProcess('app');
   rows.push(
     appMine && appNeedsRestart(appMine)
-      ? ['Storyboard', yellow('◒'), 'restart needed', `${cyan(appMine.url)} · ./storyboard restart app`]
+      ? ['Kite', yellow('◒'), 'restart needed', `${cyan(appMine.url)} · ./kite restart app`]
       : app === 'here'
         ? [
-            'Storyboard',
+            'Kite',
             green('●'),
             'running',
-            `${cyan(BASE_URL)}${appMine ? dim(` · up ${uptime(appMine.startedAt)}`) : dim(' · not started by ./storyboard')}`,
+            `${cyan(BASE_URL)}${appMine ? dim(` · up ${uptime(appMine.startedAt)}`) : dim(' · not started by ./kite')}`,
           ]
         : app === 'elsewhere'
-          ? ['Storyboard', gray('○'), 'stopped', dim(`port ${PORT} is used by a Storyboard in another folder`)]
-          : ['Storyboard', gray('○'), 'stopped', ''],
+          ? ['Kite', gray('○'), 'stopped', dim(`port ${PORT} is used by a Kite in another folder`)]
+          : ['Kite', gray('○'), 'stopped', ''],
   );
   for (const id of ['music', 'sfx'] as const) {
     const label = id === 'music' ? 'Music' : 'Sound effects';
@@ -387,18 +389,18 @@ export async function status(): Promise<void> {
     } else if (on === undefined) {
       rows.push([label, gray('○'), 'not set up', '']);
     } else if (!on) {
-      rows.push([label, gray('○'), 'off', dim('./storyboard setup turns it on')]);
+      rows.push([label, gray('○'), 'off', dim('./kite setup turns it on')]);
     } else if (!installed) {
-      rows.push([label, red('●'), 'not installed', dim('./storyboard setup finishes it')]);
+      rows.push([label, red('●'), 'not installed', dim('./kite setup finishes it')]);
     } else {
-      rows.push([label, gray('○'), 'stopped', dim(`./storyboard start ${id}`)]);
+      rows.push([label, gray('○'), 'stopped', dim(`./kite start ${id}`)]);
     }
   }
   const width = Math.max(...rows.map((r) => r[0].length)) + 3;
   for (const [label, dot, state, detail] of rows) {
     console.log(`${BAR}  ${bold(label.padEnd(width))}${dot} ${state.padEnd(14)}${detail}`);
   }
-  rail.close(settings ? dim('./storyboard start · stop · logs · setup') : `Not set up yet: ${cyan('./storyboard setup')}`);
+  rail.close(settings ? dim('./kite start · stop · logs · setup') : `Not set up yet: ${cyan('./kite setup')}`);
 }
 
 /** Print (or follow) a service's log, or setup's. */
@@ -419,7 +421,7 @@ export async function logs(id: ServiceId | 'setup', follow: boolean): Promise<vo
   showLogs(file, follow);
 }
 
-/** The services `./storyboard start` runs by default: the app and the engines turned on in setup. */
+/** The services `./kite start` runs by default: the app and the engines turned on in setup. */
 export function defaultServices(): ServiceId[] | null {
   const settings = readSettings();
   if (!settings) return null;

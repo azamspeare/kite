@@ -1,4 +1,4 @@
-// Music analysis for Storyboard: tempo, beats, downbeats, phrases, sections,
+// Music analysis for Kite: tempo, beats, downbeats, phrases, sections,
 // accents and a drawable waveform, computed from any audio file ffmpeg can read.
 
 import type { MusicAnalysis } from '../../src/shared/types';

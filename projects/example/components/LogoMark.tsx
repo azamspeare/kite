@@ -12,7 +12,7 @@ export const MARK_BARS = [
 
 export const MARK_RADIUS = 42;
 
-/** The Storyboard mark with its top-left corner at (x, y). */
+/** The teaser's mark (three clips on a timeline) with its top-left corner at (x, y). */
 export function LogoMark(props: { x: number; y: number; barScale?: (i: number) => number; style?: CSSProperties }) {
   return (
     <div

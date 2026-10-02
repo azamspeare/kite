@@ -298,7 +298,7 @@ export class SoundLibrary {
       .replace(/[\\/:*?"<>|\x00-\x1f]/g, '')
       .trim();
     const ext = path.extname(base).toLowerCase();
-    if (!AUDIO_FILE.test(ext)) throw new HttpError(400, `“${originalName}” isn't an audio file Storyboard can read`);
+    if (!AUDIO_FILE.test(ext)) throw new HttpError(400, `“${originalName}” isn't an audio file Kite can read`);
     const stem =
       base
         .slice(0, base.length - ext.length)

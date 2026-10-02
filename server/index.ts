@@ -36,7 +36,7 @@ function watchProjects(store: ProjectStore) {
       store.events.emit('list-changed');
       return;
     }
-    if (parts[1] === '.storyboard' || parts[1] === 'renders' || filename.toString().endsWith('.tmp')) return;
+    if (parts[1] === '.kite' || parts[1] === 'renders' || filename.toString().endsWith('.tmp')) return;
     clearTimeout(timers.get(id));
     timers.set(
       id,
@@ -51,7 +51,7 @@ function watchProjects(store: ProjectStore) {
       }, 60),
     );
   });
-  watcher.on('error', (e) => console.warn('[storyboard] project watcher error:', e.message));
+  watcher.on('error', (e) => console.warn('[kite] project watcher error:', e.message));
 }
 
 async function main() {
@@ -73,7 +73,7 @@ async function main() {
   const seams = new SeamService(store, capturer, hub);
   const agents = new AgentRegistry([new ClaudeCodeProvider(), new CodexProvider()]);
   const undo = new UndoStore(store);
-  // The music and sound-effects engines are started with `./storyboard start`; Storyboard only watches them.
+  // The music and sound-effects engines are started with `./kite start`; Kite only watches them.
   const engine = new MusicEngine();
   await engine.init();
   const sfx = new SfxEngine();
@@ -116,7 +116,7 @@ async function main() {
       if (url === '/api/events') return hub.handleSse(req, res);
       if (isMcp) {
         handleMcp(req, res, { store, capturer, seams, engine, library, music, sfx, soundLibrary, sounds }).catch((e: Error) => {
-          console.error('[storyboard] MCP error:', e);
+          console.error('[kite] MCP error:', e);
           if (!res.headersSent) res.writeHead(500).end(e.message);
         });
         return;
@@ -129,7 +129,7 @@ async function main() {
 
   httpServer.listen(PORT, HOST, async () => {
     const { agents: available } = await agents.info();
-    console.log(`\n  Storyboard  ${BASE_URL}\n`);
+    console.log(`\n  Kite  ${BASE_URL}\n`);
     console.log(`  Listening   ${HOST} · port ${PORT}`);
     if (networkExposed(HOST)) console.warn(`  Warning     ${NETWORK_WARNING}`);
     console.log(`  Projects    ${PROJECTS_DIR}`);
@@ -137,7 +137,7 @@ async function main() {
       console.log(`  Agent       ${status.ok ? `${status.label} ${status.version ?? ''}` : `unavailable — ${status.detail}`}`);
     console.log(`  MCP         ${MCP_URL}`);
     console.log(
-      `              claude mcp add --transport http storyboard ${MCP_URL}\n              codex mcp add storyboard --url ${MCP_URL}\n`,
+      `              claude mcp add --transport http kite ${MCP_URL}\n              codex mcp add kite --url ${MCP_URL}\n`,
     );
   });
 

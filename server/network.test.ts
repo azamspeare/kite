@@ -35,7 +35,7 @@ describe('network configuration', () => {
   });
 
   it('preserves settings and accepts older settings files', (t) => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'storyboard-settings-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kite-settings-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     const file = path.join(dir, 'settings.json');
     assert.equal(readSettings(file), null);
@@ -52,14 +52,14 @@ describe('network configuration', () => {
   });
 
   it('loads saved choices on startup and refreshes live URLs after setup saves', (t) => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'storyboard-config-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kite-config-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     fs.mkdirSync(path.join(dir, 'server'));
     for (const name of ['config.ts', 'settings.ts', 'paths.ts', 'network.ts'])
       fs.copyFileSync(path.join(ROOT, 'server', name), path.join(dir, 'server', name));
     fs.writeFileSync(path.join(dir, 'package.json'), '{"type":"module"}');
     fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(dir, 'node_modules'));
-    writeSettings({ music: false, sfx: true, host: '0.0.0.0', port: 5299 }, path.join(dir, '.storyboard/settings.json'));
+    writeSettings({ music: false, sfx: true, host: '0.0.0.0', port: 5299 }, path.join(dir, '.kite/settings.json'));
     const { HOST: _host, PORT: _port, ...env } = process.env;
     const result = execFileSync(
       process.execPath,

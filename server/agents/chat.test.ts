@@ -12,7 +12,7 @@ import { AgentRegistry } from './registry';
 import type { AgentProvider, AgentTurn } from './types';
 
 async function fixture(t: TestContext) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'storyboard-chat-'));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'kite-chat-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const store = new ProjectStore(root);
   const id = await store.create({ name: 'Test' });
@@ -67,7 +67,7 @@ test('chat routes providers, resumes only same-provider sessions and retains con
   assert.equal(turns[1].turn.resume, false);
   assert.equal(turns[1].turn.effort, 'high');
   assert.match(turns[1].turn.prompt, /previous_chat.*\nuser: First/);
-  assert.equal(turns[1].turn.mcpServers.storyboard.headers?.['X-Storyboard-Files'], 'scoped');
+  assert.equal(turns[1].turn.mcpServers.kite.headers?.['X-Kite-Files'], 'scoped');
   await chats.send(id, scope, { text: 'Continue', provider: 'codex' });
   const thread = await settled();
   assert.equal(turns[2].turn.resume, true);

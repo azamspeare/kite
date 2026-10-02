@@ -1,4 +1,4 @@
-// The `storyboard` module that scenes import.
+// The `kite` module that scenes import.
 export { ease, bezier, type Easing } from './easing';
 export {
   clamp,

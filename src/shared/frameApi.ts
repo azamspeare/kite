@@ -31,14 +31,14 @@ export interface FrameApi {
 }
 
 export type FrameMessage =
-  | { source: 'sb-frame'; type: 'ready' }
-  | { source: 'sb-frame'; type: 'reloaded' }
-  | { source: 'sb-frame'; type: 'errors'; errors: string[] }
+  | { source: 'kite-frame'; type: 'ready' }
+  | { source: 'kite-frame'; type: 'reloaded' }
+  | { source: 'kite-frame'; type: 'errors'; errors: string[] }
   /** Whole-video frames in the editor post their cues after every (re)load that changes them. */
-  | { source: 'sb-frame'; type: 'sounds'; report: SoundReport };
+  | { source: 'kite-frame'; type: 'sounds'; report: SoundReport };
 
 declare global {
   interface Window {
-    __sb?: FrameApi;
+    __kite?: FrameApi;
   }
 }

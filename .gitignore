@@ -7,11 +7,11 @@ projects/*
 !projects/example/
 
 # Per-project internals (chats, undo, captured frames) and exported videos
-projects/*/.storyboard/
+projects/*/.kite/
 projects/*/renders/
 
-# What ./storyboard setup installs: tools, settings, logs (.storyboard) and the optional engines
-/.storyboard/
+# What ./kite setup installs: tools, settings, logs (.kite) and the optional engines
+/.kite/
 /engines/music/
 /engines/sfx/.venv/
 /engines/sfx/models/

@@ -28,8 +28,8 @@ const info: Info = {
 };
 
 test('agent preferences follow the server default, survive reloads and keep legacy Claude choices separate', () => {
-  saved.set('sb:model', 'legacy-claude-model');
-  saved.set('sb:effort', 'max');
+  saved.set('kite:model', 'legacy-claude-model');
+  saved.set('kite:effort', 'max');
   setInfo(info);
   assert.equal(currentAgent()?.id, 'codex');
   assert.equal(useEditor.getState().model, '');
@@ -37,7 +37,7 @@ test('agent preferences follow the server default, survive reloads and keep lega
   setModel('codex-model');
   setEffort('high');
   // No explicit provider selection: reloading must still restore the default provider's preferences.
-  assert.ok(!saved.has('sb:provider'));
+  assert.ok(!saved.has('kite:provider'));
   useEditor.setState({ provider: '', model: '', effort: '', info: null });
   setInfo(info);
   assert.equal(useEditor.getState().model, 'codex-model');

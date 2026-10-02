@@ -16,11 +16,11 @@ const quote = (s: string) => `'${s.replaceAll("'", "'\\''")}'`;
 test(
   'Codex CLI discovers scoped tools, edits, rejects direct writes and resumes with the same restrictions',
   {
-    skip: !process.env.STORYBOARD_TEST_CODEX,
+    skip: !process.env.KITE_TEST_CODEX,
     timeout: 45000,
   },
   async (t) => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'storyboard-codex-integration-'));
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'kite-codex-integration-'));
     const abort = new AbortController();
     const signal = AbortSignal.any([abort.signal, t.signal, AbortSignal.timeout(35000)]);
     let server: http.Server | undefined;
@@ -47,13 +47,13 @@ test(
       type: 'tool_search_call',
       call_id,
       execution: 'client',
-      arguments: { query: 'storyboard read_project_file edit_project_file', limit: 2 },
+      arguments: { query: 'kite read_project_file edit_project_file', limit: 2 },
     });
     const call = (call_id: string, name: string, args: Record<string, unknown>) => ({
       type: 'function_call',
       id: `fc_${call_id}`,
       call_id,
-      namespace: 'mcp__storyboard',
+      namespace: 'mcp__kite',
       name,
       arguments: JSON.stringify(args),
     });
@@ -89,10 +89,10 @@ test(
     server = http.createServer(async (req, res) => {
       try {
         if (req.url === '/mcp') {
-          assert.equal(req.headers['x-storyboard-scope'], 'scene');
-          assert.equal(req.headers['x-storyboard-project'], id);
-          assert.equal(req.headers['x-storyboard-scene'], project.scenes[0].id);
-          assert.equal(req.headers['x-storyboard-files'], 'scoped');
+          assert.equal(req.headers['x-kite-scope'], 'scene');
+          assert.equal(req.headers['x-kite-project'], id);
+          assert.equal(req.headers['x-kite-scene'], project.scenes[0].id);
+          assert.equal(req.headers['x-kite-files'], 'scoped');
           await handleMcp(req, res, services);
           return;
         }
@@ -136,14 +136,14 @@ test(
     await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve));
     const port = (server.address() as { port: number }).port;
     const bin = path.join(root, 'codex');
-    const modelProvider = `model_providers.storyboard_fixture={name="Local fixture",base_url="http://127.0.0.1:${port}/v1",env_key="STORYBOARD_TEST_API_KEY",wire_api="responses"}`;
+    const modelProvider = `model_providers.kite_fixture={name="Local fixture",base_url="http://127.0.0.1:${port}/v1",env_key="KITE_TEST_API_KEY",wire_api="responses"}`;
     await fs.writeFile(
       bin,
       `#!/bin/sh
 export CODEX_HOME=${quote(home)}
 unset OPENAI_API_KEY CODEX_API_KEY
-export STORYBOARD_TEST_API_KEY=not-a-real-key
-exec ${quote(CODEX_BIN)} "$@" -c 'model_provider="storyboard_fixture"' -c ${quote(modelProvider)}
+export KITE_TEST_API_KEY=not-a-real-key
+exec ${quote(CODEX_BIN)} "$@" -c 'model_provider="kite_fixture"' -c ${quote(modelProvider)}
 `,
       { mode: 0o755 },
     );
@@ -151,7 +151,7 @@ exec ${quote(CODEX_BIN)} "$@" -c 'model_provider="storyboard_fixture"' -c ${quot
     const turn: AgentTurn = {
       cwd: project.dir,
       prompt: 'Protocol test',
-      systemPrompt: 'Use the Storyboard tools.',
+      systemPrompt: 'Use the Kite tools.',
       model: 'gpt-5.5',
       effort: 'medium',
       resume: false,
@@ -160,14 +160,14 @@ exec ${quote(CODEX_BIN)} "$@" -c 'model_provider="storyboard_fixture"' -c ${quot
       allow: [],
       signal,
       mcpServers: {
-        storyboard: {
+        kite: {
           type: 'http',
           url: `http://127.0.0.1:${port}/mcp`,
           headers: {
-            'X-Storyboard-Scope': 'scene',
-            'X-Storyboard-Project': id,
-            'X-Storyboard-Scene': project.scenes[0].id,
-            'X-Storyboard-Files': 'scoped',
+            'X-Kite-Scope': 'scene',
+            'X-Kite-Project': id,
+            'X-Kite-Scene': project.scenes[0].id,
+            'X-Kite-Files': 'scoped',
           },
         },
       },

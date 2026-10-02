@@ -4,7 +4,7 @@ import { SETTINGS_FILE } from './paths';
 import { validHost, validPort, type NetworkSettings } from './network';
 import type { AgentProviderId } from '../src/shared/agents';
 
-/** Choices made in `./storyboard setup`. */
+/** Choices made in `./kite setup`. */
 export interface Settings extends NetworkSettings {
   music: boolean;
   sfx: boolean;
@@ -28,10 +28,10 @@ export function readSettings(file = SETTINGS_FILE): Settings | null {
 }
 
 export function preferredProvider(): AgentProviderId | undefined {
-  const env = process.env.STORYBOARD_PROVIDER;
+  const env = process.env.KITE_PROVIDER;
   if (!env) return readSettings()?.provider;
   if (env === 'claude-code' || env === 'codex') return env;
-  throw new Error('STORYBOARD_PROVIDER must be claude-code or codex');
+  throw new Error('KITE_PROVIDER must be claude-code or codex');
 }
 
 export function writeSettings(settings: Settings, file = SETTINGS_FILE) {

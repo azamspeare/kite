@@ -1,4 +1,4 @@
-// Things ./storyboard does on this machine: paths as the user types them, disk and memory, moving folders,
+// Things ./kite does on this machine: paths as the user types them, disk and memory, moving folders,
 // opening links, and running other programs. (How the output looks is in ui.ts.)
 import { execFile, spawn, type SpawnOptions } from 'node:child_process';
 import fs from 'node:fs';

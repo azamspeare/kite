@@ -1,9 +1,9 @@
-# Storyboard's local sound-effects engine: Stable Audio Open 1.0 (via diffusers) behind a small HTTP API.
-# `./storyboard setup` installs it with uv sync --locked --no-build: pinned wheels only, nothing is built.
+# Kite's local sound-effects engine: Stable Audio Open 1.0 (via diffusers) behind a small HTTP API.
+# `./kite setup` installs it with uv sync --locked --no-build: pinned wheels only, nothing is built.
 [project]
-name = "storyboard-sfx"
+name = "kite-sfx"
 version = "0.1.0"
-description = "Stable Audio Open sound effects for Storyboard"
+description = "Stable Audio Open sound effects for Kite"
 requires-python = "==3.12.*"
 dependencies = [
   "torch==2.10.0",

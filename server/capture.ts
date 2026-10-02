@@ -62,7 +62,7 @@ export class Capturer {
         )
         .catch((e: Error) => {
           this.browserPromise = null;
-          throw new Error(`Could not start headless Chromium. Run "./storyboard setup". (${e.message})`);
+          throw new Error(`Could not start headless Chromium. Run "./kite setup". (${e.message})`);
         });
     }
     return this.browserPromise;
@@ -86,9 +86,9 @@ export class Capturer {
     if (opts.sceneId) params.set('scene', opts.sceneId);
     try {
       await page.goto(`${BASE_URL}/frame.html?${params}`, { waitUntil: 'load', timeout: 60000 });
-      await page.waitForFunction(() => Boolean(window.__sb), undefined, { timeout: 60000 });
+      await page.waitForFunction(() => Boolean(window.__kite), undefined, { timeout: 60000 });
       await withTimeout(
-        page.evaluate(() => window.__sb!.ready),
+        page.evaluate(() => window.__kite!.ready),
         60000,
         'Loading the scene timed out',
       );
@@ -122,7 +122,7 @@ export class Capturer {
         this.slots.set(key, slot);
       } else {
         await withTimeout(
-          slot.page.evaluate(() => window.__sb!.reload()),
+          slot.page.evaluate(() => window.__kite!.reload()),
           RENDER_TIMEOUT_MS,
           'Reloading the scene timed out',
         );
@@ -155,7 +155,7 @@ export class Capturer {
     return this.withPage(projectId, !sceneId, scale, async (page) => {
       if (sceneId) {
         await withTimeout(
-          page.evaluate((id) => window.__sb!.setScene(id), sceneId),
+          page.evaluate((id) => window.__kite!.setScene(id), sceneId),
           RENDER_TIMEOUT_MS,
           'Loading the scene timed out',
         );
@@ -179,7 +179,7 @@ export class Capturer {
   async sounds(projectId: string): Promise<SoundReport> {
     return this.withPage(projectId, true, AGENT_FRAME_SCALE, (page) =>
       withTimeout(
-        page.evaluate(() => window.__sb!.sounds()),
+        page.evaluate(() => window.__kite!.sounds()),
         RENDER_TIMEOUT_MS,
         'Collecting the sound cues timed out',
       ),
@@ -223,7 +223,7 @@ export class Capturer {
 
 export async function captureOne(page: Page, t: number): Promise<FrameRenderResult> {
   return withTimeout(
-    page.evaluate((time) => window.__sb!.seek(time), t),
+    page.evaluate((time) => window.__kite!.seek(time), t),
     RENDER_TIMEOUT_MS,
     `Rendering t=${t}s took longer than ${RENDER_TIMEOUT_MS / 1000}s (infinite loop?)`,
   );

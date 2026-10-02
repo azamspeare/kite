@@ -1,4 +1,4 @@
-import { Fill, ease, progress, type SceneProps, type SceneSounds } from 'storyboard';
+import { Fill, ease, progress, type SceneProps, type SceneSounds } from 'kite';
 import { Headline, swapWords } from '../components/Headline';
 import { CARD_H, CARD_W, LOOKS, PromptCard, type LayerName } from '../components/PromptCard';
 import { BG, CARD, DISPLAY, INK } from '../components/tokens';

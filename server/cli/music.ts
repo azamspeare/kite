@@ -13,9 +13,9 @@ import { formatSize, rail, Task } from './ui';
 import { ensureUv, UV_BIN, uvEnv, venvIsOurs } from './uv';
 
 const REPO = 'https://github.com/ace-step/ACE-Step-1.5.git';
-/** The commit Storyboard is tested with; its uv.lock pins every Python package. */
+/** The commit Kite is tested with; its uv.lock pins every Python package. */
 const COMMIT = 'ca1e85fe9430179831e6bc6be790c332190a3866';
-/** Where the README told people to install it before ./storyboard existed. */
+/** Where the README of Storyboard (the project Kite is built from) told people to install it, before its launcher existed. */
 export const LEGACY_MUSIC_DIR = path.resolve(process.env.ACESTEP_DIR ?? path.join(os.homedir(), 'Tools', 'ace-step'));
 
 /** Why the engine can't run on this machine, or null when it can. */
@@ -142,7 +142,7 @@ export async function installMusic(opts: { moveModelsFrom: string | null }): Pro
       watch: { paths: MAIN_PARTS.map((p) => path.join(checkpoints, p)), total },
     });
     if (step.code !== 0 || !engineInstalled()) {
-      stepFailed(task, 'download failed · run ./storyboard setup again to resume', step.tail);
+      stepFailed(task, 'download failed · run ./kite setup again to resume', step.tail);
       return false;
     }
     task.done(total ? formatSize(total) : '');

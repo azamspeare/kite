@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { mix, mixColor } from 'storyboard';
+import { mix, mixColor } from 'kite';
 import { DISPLAY, MONO } from './tokens';
 
 export const CARD_W = 680;
@@ -105,7 +105,7 @@ export type LayerName = 'surface' | 'inset' | 'header' | 'text' | 'footer' | 'se
 export const PROMPT = 'Hold on the headline a full second longer, then slide the card in from the right.';
 
 /**
- * The prompt card from the Storyboard editor, built from separate absolutely positioned layers so a
+ * The prompt card from the Kite editor, built from separate absolutely positioned layers so a
  * scene can pull them apart in 3D (`layer` adds per-layer styles such as translateZ).
  */
 export function PromptCard(props: { look: Look; layer?: (name: LayerName) => CSSProperties | undefined; style?: CSSProperties }) {

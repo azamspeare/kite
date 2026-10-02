@@ -6,7 +6,7 @@ export const SceneContext = createContext<SceneProps | null>(null);
 /** Scene props from anywhere inside a scene (for nested components). */
 export function useScene(): SceneProps {
   const value = useContext(SceneContext);
-  if (!value) throw new Error('useScene() must be used inside a Storyboard scene');
+  if (!value) throw new Error('useScene() must be used inside a Kite scene');
   return value;
 }
 

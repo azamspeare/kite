@@ -1,4 +1,4 @@
-import { Fill, ease, mix, progress, type SceneProps, type SceneSounds } from 'storyboard';
+import { Fill, ease, mix, progress, type SceneProps, type SceneSounds } from 'kite';
 import { LogoMark, MARK_SIZE } from '../components/LogoMark';
 import { BG, DISPLAY, GRAY, INK } from '../components/tokens';
 
@@ -6,7 +6,7 @@ const START_X = 960 - MARK_SIZE / 2;
 const MARK_Y = 540 - MARK_SIZE / 2;
 /** Final lockup: mark + 44 px gap + wordmark, centred as a group. */
 const WORD_SIZE = 132;
-const WORD_WIDTH = 630;
+const WORD_WIDTH = 224;
 const GAP = 44;
 const LOCKUP_X = 960 - (MARK_SIZE + GAP + WORD_WIDTH) / 2;
 
@@ -59,7 +59,7 @@ export default function Logo({ t, music }: SceneProps) {
               transform: reveal < 1 ? `translateX(${-(1 - reveal) * (WORD_WIDTH + 24)}px)` : undefined,
             }}
           >
-            Storyboard
+            Kite
           </div>
         </div>
       )}

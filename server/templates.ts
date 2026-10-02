@@ -1,9 +1,9 @@
-/** Marks the project CLAUDE.md and AGENTS.md guides as managed: Storyboard refreshes it on start. Delete the line to keep your own edits. */
-export const GUIDE_MARKER = '<!-- storyboard:managed-guide v3 -->';
+/** Marks the project CLAUDE.md and AGENTS.md guides as managed: Kite refreshes it on start. Delete the line to keep your own edits. */
+export const GUIDE_MARKER = '<!-- kite:managed-guide v3 -->';
 
 export function starterScene(name: string): string {
   const text = JSON.stringify(name);
-  return `import { Fill, ease, progress, type SceneProps } from 'storyboard';
+  return `import { Fill, ease, progress, type SceneProps } from 'kite';
 
 export default function Scene({ t, duration }: SceneProps) {
   const enter = progress(t, 0.1, 0.9, ease.outExpo);
@@ -40,23 +40,23 @@ The agent reads this before every edit. Describe the look and feel every scene s
 `;
 
 export const SCENE_GUIDE = `${GUIDE_MARKER}
-# Storyboard projects
+# Kite projects
 
-This folder holds Storyboard video projects (a prompt-driven motion-design editor). A video is an ordered list of scenes; every scene is a React component that renders one frame for a given time. Each project folder contains:
+This folder holds Kite video projects (a prompt-driven motion-design editor). A video is an ordered list of scenes; every scene is a React component that renders one frame for a given time. Each project folder contains:
 
-- \`project.json\` — name, canvas size, fps, the ordered scene list (\`id\`, \`name\`, \`duration\` in seconds) and the music reference. While the app is running, change structure and timing through the Storyboard tools (set_scene_duration, create_scene, move_scene, …) rather than editing this file by hand.
+- \`project.json\` — name, canvas size, fps, the ordered scene list (\`id\`, \`name\`, \`duration\` in seconds) and the music reference. While the app is running, change structure and timing through the Kite tools (set_scene_duration, create_scene, move_scene, …) rather than editing this file by hand.
 - \`scenes/<id>.tsx\` — one component per scene.
 - \`components/\` — optional components shared by several scenes (import them relatively).
 - \`assets/\` — images/SVGs, referenced with \`asset('file.png')\`.
 - \`art-direction.md\` — the visual rules every scene follows. Read it before designing.
 - \`music/\`, \`music.json\` — the soundtrack and its beat analysis.
 - \`sounds/\` — the sound-effect library: audio files the user adds, plus \`sounds.json\` (synth recipes and generated sounds, managed by the tools; don't edit it by hand).
-- \`renders/\` — exported videos. \`.storyboard/\` — internal (chats, undo, caches); never touch.
+- \`renders/\` — exported videos. \`.kite/\` — internal (chats, undo, caches); never touch.
 
 ## The scene contract
 
 \`\`\`tsx
-import { Fill, SplitText, ease, interpolate, progress, spring, springs, type SceneProps } from 'storyboard';
+import { Fill, SplitText, ease, interpolate, progress, spring, springs, type SceneProps } from 'kite';
 
 export default function Anatomy({ t, duration, music }: SceneProps) {
   const enter = progress(t, 0.1, 0.8, ease.outExpo);            // 0 → 1
@@ -78,13 +78,13 @@ export default function Anatomy({ t, duration, music }: SceneProps) {
 
 - The default export receives \`SceneProps\`: \`t\` (seconds since the scene started, 0 → \`duration\`), \`duration\`, \`width\` × \`height\` (the canvas in CSS px, usually 1920 × 1080), \`fps\`, \`music\` (beat grid, below) and \`scene\` (\`id\`, \`name\`, \`index\`, \`count\`, \`start\`).
 - **Everything must be a pure function of the props.** Frames are rendered out of order and one at a time. No \`useState\`/\`useEffect\`-driven animation, timers, \`requestAnimationFrame\`, \`Date.now()\`, \`Math.random()\` (use \`random(seed)\`), CSS \`transition\`/\`animation\`/\`@keyframes\`, videos, or network requests.
-- Import only from \`react\`, \`storyboard\` and relative files inside the project.
+- Import only from \`react\`, \`kite\` and relative files inside the project.
 - Style with inline \`style={{…}}\` (a \`<style>\` tag with static CSS is fine). Position with absolute layout on the fixed canvas; animate with \`transform\`, \`opacity\`, \`filter\`, \`clip-path\`, SVG attributes (e.g. \`strokeDashoffset\` for line drawing). CSS 3D (\`perspective\`, \`preserve-3d\`, \`rotateX/Y\`, \`translateZ\`) works.
 - Fonts: \`'Inter Variable'\` (100–900 with optical sizing, so large sizes get the Display cut), \`'Geist Variable'\`, \`'JetBrains Mono Variable'\`. Nothing else loads.
 - Paint your own background with a full-bleed \`<Fill>\`; the stage default is white.
 - Rebuild UI in code (cards, inputs, buttons, charts) rather than using screenshots, so every element can move independently and stays crisp.
 
-## \`storyboard\` runtime
+## \`kite\` runtime
 
 - \`progress(t, start, end, easing?)\` → 0…1, clamped and eased. The workhorse.
 - \`interpolate(t, [t0, t1, …], [v0, v1, …], { easing?: e | e[], clamp?: true })\` → multi-stop mapping (per-segment easings allowed).
@@ -106,7 +106,7 @@ export default function Anatomy({ t, duration, music }: SceneProps) {
 A scene plays sound effects by exporting \`sounds\`: cues in scene-local seconds. Name each moment once and use it in both the component and \`sounds\` (never copy numbers between them), so picture and sound stay locked when timing changes.
 
 \`\`\`tsx
-import { progress, type SceneProps, type SceneSounds, type SoundProps } from 'storyboard';
+import { progress, type SceneProps, type SceneSounds, type SoundProps } from 'kite';
 
 // Every moment the animation and the sounds share, from one place.
 const moments = ({ music }: SoundProps) => ({ type: music.beat(2), key: music.beatLength / 4, send: music.bar(1) });
@@ -139,14 +139,14 @@ Scenes play back to back with hard cuts. When an object continues across a cut, 
 - At rest, render the shared pose flat on both sides of the cut: no leftover \`perspective\`/\`preserve-3d\`/\`translateZ\`, filters or wrapper transforms (composited layers anti-alias text differently, which shows up as a small diff).
 - Put values that must match across scenes (positions, sizes, copy, colors) in \`components/\` and import them from both scenes; don't import one scene from another.
 
-## Tools (MCP server \`storyboard\`)
+## Tools (MCP server \`kite\`)
 
 - \`render_frames\` — render frames of a scene at the times you choose and look at them. Always check your work visually: the start, the end, and each moment you changed.
 - \`check_seams\` — pixel-diff the cuts into and out of a scene (or all cuts).
 - \`get_project\`, \`get_music_context\` — structure, timing, file paths; tempo/beats/phrases in scene-local time.
 - \`set_scene_duration\`, \`create_scene\`, \`duplicate_scene\`, \`delete_scene\`, \`move_scene\`, \`rename_scene\` — timing and structure.
-- \`generate_music\`, \`wait_for_music\`, \`list_music_takes\`, \`describe_music_take\`, \`use_music_take\`, \`repaint_music\` — compose and choose the soundtrack with the local music model. Only listed while the music engine runs (\`./storyboard start\`).
-- \`list_sounds\`, \`describe_sound\`, \`create_sound\`, \`delete_sound\` — the sound-effect library; \`generate_sound\` makes sounds from a prompt while the sound-effects engine runs (\`./storyboard start\`).
+- \`generate_music\`, \`wait_for_music\`, \`list_music_takes\`, \`describe_music_take\`, \`use_music_take\`, \`repaint_music\` — compose and choose the soundtrack with the local music model. Only listed while the music engine runs (\`./kite start\`).
+- \`list_sounds\`, \`describe_sound\`, \`create_sound\`, \`delete_sound\` — the sound-effect library; \`generate_sound\` makes sounds from a prompt while the sound-effects engine runs (\`./kite start\`).
 - \`check_audio\` — mix the soundtrack and every cue like the render and measure each cue against the mix; \`set_music_volume\` — balance the soundtrack against the effects.
 
 ## Craft

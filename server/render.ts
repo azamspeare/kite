@@ -139,7 +139,7 @@ export class Renderer {
     let hasAudio = false;
     try {
       const report = await withTimeout(
-        pages[0].page.evaluate(() => window.__sb!.sounds()),
+        pages[0].page.evaluate(() => window.__kite!.sounds()),
         60000,
         'Collecting the sound cues timed out',
       );

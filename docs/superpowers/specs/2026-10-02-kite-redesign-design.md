@@ -123,10 +123,11 @@ Renaming the CLI, docs, agent prompts or storage keys; dark mode; mobile editor;
 ## Changes made during the build
 
 - **Class merging** uses the `cn` package (shadcn's drop-in for `clsx` + `tailwind-merge`), as Rika does, instead of the two packages.
-- **The shadcn CLI is not installed.** Its one file Kite needs, `shadcn/tailwind.css`, is vendored as `src/editor/shadcn.css` (MIT); the CLI would bring 34 dependencies.
+- **The shadcn CLI** was first left out (its CSS vendored), then installed at the user's request: `npm run shadcn -- add <name>`, with Hugeicons as the icon library.
 - **The filmstrip sits on the canvas**, not in its own island: each tile is a small island, as in Rika's slide strip.
 - **Fonts kept:** `@fontsource-variable/inter`, `geist` and `jetbrains-mono` stay, because scene frames load them. Only `lucide-react` was removed.
 - **Address navigation:** the editor now follows hash changes (`#/projects`, `#/<project>/<scene>`), so typing an address or pasting a link works without a reload.
 - **Stage errors** show as a red pill over the bottom left of the frame's tray, where they cannot be missed, rather than as text under the frame.
 - **The side column** is `clamp(25rem, 32vw, 29rem)` (400–464px), a little narrower than the old 34vw on mid-size windows, so the stage keeps more room.
 - **After review:** reopening the open project from the projects page only shows it (it keeps its loaded sound cues); toasts stack above dialogs; editor shortcuts and `?` are ignored inside dialogs, on pickers and while presenting; a file dropped where it has no use is ignored instead of opened by the browser; thumbnails are out of the Tab order; the projects list is fetched again when the page opens.
+- **The rename went all the way** at the user's request: the `./kite` command, the `kite` runtime module scenes import, the `kite` MCP server, `KITE_*` environment variables, `.kite/` folders, `kite:` storage keys, the docs, the README and the package. The license keeps Storyboard's copyright line, as MIT requires.

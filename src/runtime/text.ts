@@ -13,7 +13,7 @@ let probe: HTMLSpanElement | null = null;
 /**
  * Size of a single line of text in canvas px, measured by the same layout engine that renders the
  * scene — use it to center, underline, or animate widths of text precisely.
- *   const { width } = measureText('Storyboard', { fontSize: 120, fontWeight: 700, letterSpacing: '-0.045em' })
+ *   const { width } = measureText('Kite', { fontSize: 120, fontWeight: 700, letterSpacing: '-0.045em' })
  */
 export function measureText(text: string, style: TextStyle): { width: number; height: number } {
   if (typeof document === 'undefined') return { width: 0, height: 0 };

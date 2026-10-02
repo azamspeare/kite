@@ -1,4 +1,4 @@
-# Using Storyboard
+# Using Kite
 
 ## The editor
 
@@ -43,10 +43,10 @@ The agent can't hear, so its `check_audio` tool mixes the soundtrack and every c
 
 ## Using the tools from your terminal
 
-While Storyboard is running (`./storyboard start`):
+While Kite is running (`./kite start`):
 
 ```bash
-claude mcp add --transport http storyboard http://127.0.0.1:5199/mcp
+claude mcp add --transport http kite http://127.0.0.1:5199/mcp
 cd projects/<project-id>
 claude
 ```
@@ -54,9 +54,9 @@ claude
 Or use Codex:
 
 ```bash
-codex mcp add storyboard --url http://127.0.0.1:5199/mcp
+codex mcp add kite --url http://127.0.0.1:5199/mcp
 cd projects/<project-id>
 codex
 ```
 
-`projects/CLAUDE.md` and `projects/AGENTS.md` (written by the app from the same guide) teach the agents the scene contract and the runtime API, and the `storyboard` MCP tools (`render_frames`, `check_seams`, `get_music_context`, `set_scene_duration`, `create_scene`, …) let them see and verify their work. The editor reloads live as files change.
+`projects/CLAUDE.md` and `projects/AGENTS.md` (written by the app from the same guide) teach the agents the scene contract and the runtime API, and the `kite` MCP tools (`render_frames`, `check_seams`, `get_music_context`, `set_scene_duration`, `create_scene`, …) let them see and verify their work. The editor reloads live as files change.

@@ -59,12 +59,12 @@ interface EditorState {
   modal: null | 'art' | 'new-project';
   provider: string;
   effort: string;
-  /** Empty = the server default (STORYBOARD_MODEL). */
+  /** Empty = the server default (KITE_MODEL). */
   model: string;
   toasts: Toast[];
 }
 
-const savedProvider = localStorage.getItem('sb:provider') ?? '';
+const savedProvider = localStorage.getItem('kite:provider') ?? '';
 
 export const useEditor = create<EditorState>(() => ({
   info: null,
@@ -183,7 +183,7 @@ export async function openProject(id: string, sceneId?: string | null) {
     musicError: null,
     soundCues: { cues: [], errors: [] },
   });
-  localStorage.setItem('sb:project', id);
+  localStorage.setItem('kite:project', id);
   writeHash();
   void api
     .seams(id)
@@ -310,10 +310,12 @@ export function resetChat(projectId: string, scopeKey: string) {
 function agentPreferences(provider: AgentProviderId) {
   return {
     model:
-      localStorage.getItem(`sb:model:${provider}`) ?? (provider === 'claude-code' ? localStorage.getItem('sb:model') : '') ?? '',
+      localStorage.getItem(`kite:model:${provider}`) ??
+      (provider === 'claude-code' ? localStorage.getItem('kite:model') : '') ??
+      '',
     effort:
-      localStorage.getItem(`sb:effort:${provider}`) ??
-      (provider === 'claude-code' ? localStorage.getItem('sb:effort') : '') ??
+      localStorage.getItem(`kite:effort:${provider}`) ??
+      (provider === 'claude-code' ? localStorage.getItem('kite:effort') : '') ??
       '',
   };
 }
@@ -324,16 +326,16 @@ export function setInfo(info: Info) {
 }
 
 export function setProvider(provider: AgentProviderId) {
-  localStorage.setItem('sb:provider', provider);
+  localStorage.setItem('kite:provider', provider);
   set({ provider, ...agentPreferences(provider) });
 }
 
 export function setEffort(effort: string) {
-  localStorage.setItem(`sb:effort:${currentAgent()?.id ?? 'claude-code'}`, effort);
+  localStorage.setItem(`kite:effort:${currentAgent()?.id ?? 'claude-code'}`, effort);
   set({ effort });
 }
 
 export function setModel(model: string) {
-  localStorage.setItem(`sb:model:${currentAgent()?.id ?? 'claude-code'}`, model);
+  localStorage.setItem(`kite:model:${currentAgent()?.id ?? 'claude-code'}`, model);
   set({ model });
 }

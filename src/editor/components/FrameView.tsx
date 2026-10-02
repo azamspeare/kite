@@ -46,9 +46,9 @@ export const FrameView = forwardRef<FrameHandle, Props>(function FrameView(props
     const onMessage = (e: MessageEvent) => {
       if (!iframe.current || e.source !== iframe.current.contentWindow) return;
       const msg = e.data as FrameMessage;
-      if (msg?.source !== 'sb-frame') return;
+      if (msg?.source !== 'kite-frame') return;
       if (msg.type === 'ready') {
-        apiRef.current = iframe.current.contentWindow?.__sb ?? null;
+        apiRef.current = iframe.current.contentWindow?.__kite ?? null;
         setReady(true);
         callbacks.current.onReady?.();
       } else if (msg.type === 'errors') {

@@ -1,4 +1,4 @@
-"""Storyboard's sound-effects engine: Stable Audio Open 1.0 (via diffusers) behind a small local HTTP API.
+"""Kite's sound-effects engine: Stable Audio Open 1.0 (via diffusers) behind a small local HTTP API.
 
     python server.py --download                     fetch the model into ./models (needs a Hugging Face token with the license accepted)
     python server.py --host 127.0.0.1 --port 8002   serve; the model loads in the background
@@ -8,7 +8,7 @@
                     {"prompt", "negative_prompt"?, "duration", "variations"?, "steps"?, "guidance"?, "seed"?}
                     -> {"sample_rate", "seed", "seconds", "clips": [base64 WAV, ...]}
 
-`./storyboard setup` installs it and downloads the model; `./storyboard start|stop|status|logs` runs it (and sets SFX_API_KEY).
+`./kite setup` installs it and downloads the model; `./kite start|stop|status|logs` runs it (and sets SFX_API_KEY).
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-# The model lives next to this file (engines/sfx/models), inside Storyboard's folder, not in ~/.cache/huggingface.
+# The model lives next to this file (engines/sfx/models), inside Kite's folder, not in ~/.cache/huggingface.
 os.environ["HF_HUB_CACHE"] = str(Path(__file__).resolve().parent / "models")
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
@@ -57,7 +57,7 @@ REQUIRED_FILES = [
     "vae/diffusion_pytorch_model.safetensors",
     "projection_model/diffusion_pytorch_model.safetensors",
 ]
-NOT_DOWNLOADED = "Model not downloaded — run `./storyboard setup`"
+NOT_DOWNLOADED = "Model not downloaded — run `./kite setup`"
 
 MIN_DURATION, MAX_DURATION = 0.2, 20.0
 DEFAULT_STEPS = 100
@@ -106,7 +106,7 @@ def local_model_path() -> Path | None:
 def license_hint() -> str:
     return (
         f"Stable Audio Open is gated on Hugging Face: accept its license at {LICENSE_URL}\n"
-        "(\"Agree and access repository\") and create a Read token. `./storyboard setup` walks you through it."
+        "(\"Agree and access repository\") and create a Read token. `./kite setup` walks you through it."
     )
 
 
@@ -325,7 +325,7 @@ def generate(body: dict) -> dict:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "StoryboardSFX/1.0"
+    server_version = "KiteSFX/1.0"
     protocol_version = "HTTP/1.1"
 
     def log_message(self, format: str, *args) -> None:  # noqa: A002 (stdlib signature)
@@ -400,7 +400,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def serve(host: str, port: int) -> int:
     if not os.environ.get("SFX_API_KEY"):
-        print("Set SFX_API_KEY first (`./storyboard start` does it for you).", file=sys.stderr)
+        print("Set SFX_API_KEY first (`./kite start` does it for you).", file=sys.stderr)
         return 2
     # Serving never downloads anything; `--download` does.
     os.environ["HF_HUB_OFFLINE"] = "1"
@@ -418,7 +418,7 @@ def serve(host: str, port: int) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Storyboard sound-effects engine (Stable Audio Open)")
+    parser = argparse.ArgumentParser(description="Kite sound-effects engine (Stable Audio Open)")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8002)
     parser.add_argument("--download", action="store_true", help="download the model and exit")

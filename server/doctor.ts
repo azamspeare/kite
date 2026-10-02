@@ -1,4 +1,4 @@
-// Checks that everything Storyboard needs is in place:  ./storyboard doctor  (or npm run doctor)
+// Checks that everything Kite needs is in place:  ./kite doctor  (or npm run doctor)
 // Exits with 1 while something required is missing, so agents can use it as a setup gate.
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -15,7 +15,7 @@ import { sfxEngineHealth, sfxEngineInstalled, sfxModelDownloaded } from './sound
 const execFileAsync = promisify(execFile);
 
 export interface Check {
-  /** fail: Storyboard can't work until it's fixed · warn: works, with a caveat · info: optional extras. */
+  /** fail: Kite can't work until it's fixed · warn: works, with a caveat · info: optional extras. */
   level: 'ok' | 'fail' | 'warn' | 'info';
   label: string;
   fix?: string;
@@ -43,7 +43,7 @@ export async function checkFfmpeg(): Promise<Check> {
     return {
       level: 'fail',
       label: `ffmpeg not found (${FFMPEG})`,
-      fix: './storyboard setup installs it (or: brew install ffmpeg · sudo apt install ffmpeg)',
+      fix: './kite setup installs it (or: brew install ffmpeg · sudo apt install ffmpeg)',
     };
   }
   // Renders are H.264 with AAC audio.
@@ -69,12 +69,12 @@ export async function checkChromium(): Promise<Check> {
   } catch (e) {
     const message = (e as Error).message;
     if (/Executable doesn't exist/i.test(message)) {
-      return { level: 'fail', label: 'Headless Chromium is not installed', fix: './storyboard setup' };
+      return { level: 'fail', label: 'Headless Chromium is not installed', fix: './kite setup' };
     }
     return {
       level: 'fail',
       label: `Headless Chromium does not start: ${message.split('\n')[0]}`,
-      fix: './storyboard setup',
+      fix: './kite setup',
     };
   }
 }
@@ -95,7 +95,7 @@ export async function claudeStatus(): Promise<{
   }
   // The same environment the in-app agent gets (agents/claudeCode.ts): your login, not ANTHROPIC_API_KEY.
   const env = { ...process.env };
-  if (!process.env.STORYBOARD_USE_API_KEY) delete env.ANTHROPIC_API_KEY;
+  if (!process.env.KITE_USE_API_KEY) delete env.ANTHROPIC_API_KEY;
   let output = '';
   try {
     output = (await execFileAsync(CLAUDE_BIN, ['auth', 'status', '--json'], { timeout: 15000, env })).stdout;
@@ -117,7 +117,7 @@ export async function checkClaude(): Promise<Check> {
     return {
       level: 'fail',
       label: `Claude Code not found (${CLAUDE_BIN})`,
-      fix: './storyboard setup installs it (or see https://code.claude.com), then: claude auth login',
+      fix: './kite setup installs it (or see https://code.claude.com), then: claude auth login',
     };
   }
   if (status.loggedIn === null) {
@@ -166,11 +166,11 @@ async function checkPort(): Promise<Check> {
     .then(async (res) => res.ok && 'projectsDir' in ((await res.json()) as object))
     .catch(() => false);
   return alreadyRunning
-    ? { level: 'info', label: `Storyboard is already running at ${BASE_URL}` }
+    ? { level: 'info', label: `Kite is already running at ${BASE_URL}` }
     : {
         level: 'warn',
         label: `Port ${PORT} is used by another program`,
-        fix: 'Start on another port: PORT=5299 ./storyboard start',
+        fix: 'Start on another port: PORT=5299 ./kite start',
       };
 }
 
@@ -197,12 +197,10 @@ async function checkEngine(
   const state = await health();
   if (state) return { level: 'info', label: `${name}: ${state} at ${url}` };
   if (!isLocalUrl(url)) return { level: 'info', label: `${name}: not answering at ${url}` };
-  if (on === undefined)
-    return { level: 'info', label: `${name} (optional): not set up`, fix: './storyboard setup asks about it' };
-  if (!on) return { level: 'info', label: `${name} (optional): off`, fix: './storyboard setup turns it on' };
-  if (!installed)
-    return { level: 'warn', label: `${name}: on, but not installed`, fix: './storyboard setup finishes installing it' };
-  return { level: 'info', label: `${name}: installed, stopped`, fix: `./storyboard start ${service}` };
+  if (on === undefined) return { level: 'info', label: `${name} (optional): not set up`, fix: './kite setup asks about it' };
+  if (!on) return { level: 'info', label: `${name} (optional): off`, fix: './kite setup turns it on' };
+  if (!installed) return { level: 'warn', label: `${name}: on, but not installed`, fix: './kite setup finishes installing it' };
+  return { level: 'info', label: `${name}: installed, stopped`, fix: `./kite start ${service}` };
 }
 
 const checkMusic = () =>
@@ -233,7 +231,7 @@ const checkSfx = () =>
 
 /** Print every check; resolves to the exit code (1 while something required is missing). */
 export async function doctor(): Promise<number> {
-  rail.open('Storyboard doctor');
+  rail.open('Kite doctor');
   rail.gap();
   const checking = new Task('Checking');
   const checks = await Promise.all([
@@ -253,9 +251,9 @@ export async function doctor(): Promise<number> {
   }
   const failed = checks.filter((c) => c.level === 'fail').length;
   if (failed) {
-    rail.close(`${failed} problem${failed === 1 ? '' : 's'} to fix · ./storyboard setup fixes most of them`, 'fail');
+    rail.close(`${failed} problem${failed === 1 ? '' : 's'} to fix · ./kite setup fixes most of them`, 'fail');
     return 1;
   }
-  rail.close(alreadyRunning ? `Ready · running at ${BASE_URL}` : 'Ready · start it with ./storyboard start');
+  rail.close(alreadyRunning ? `Ready · running at ${BASE_URL}` : 'Ready · start it with ./kite start');
   return 0;
 }

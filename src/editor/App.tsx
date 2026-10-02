@@ -61,7 +61,7 @@ export function App() {
       const [hashProject, hashScene] = decodeURIComponent(location.hash.replace(/^#\/?/, '')).split('/');
       // `#/projects` asks for the projects page; otherwise the app opens the named or last project, as before.
       if (hashProject === 'projects') return setView('projects');
-      const candidates = [hashProject, localStorage.getItem('sb:project'), projects[0]?.id];
+      const candidates = [hashProject, localStorage.getItem('kite:project'), projects[0]?.id];
       const id = candidates.find((x) => x && projects.some((p) => p.id === x));
       if (id) await openProject(id, hashScene || null);
       else setView('projects');

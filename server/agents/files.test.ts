@@ -10,7 +10,7 @@ import { ProjectStore } from '../projects';
 import { ProjectFiles } from './files';
 
 async function fixture(t: TestContext) {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'storyboard-files-'));
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'kite-files-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const store = new ProjectStore(root);
   await store.init();
@@ -46,7 +46,7 @@ test('project writes cannot escape through traversal or symlinks or edit interna
     '/tmp/outside',
     'components/../project.json',
     'components/.codex/config.toml',
-    '.storyboard/chats/x.json',
+    '.kite/chats/x.json',
     'components\\bad',
   ]) {
     await assert.rejects(files.write(file, 'no'));

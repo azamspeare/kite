@@ -1,5 +1,5 @@
 node_modules
 projects/*/renders
-projects/*/.storyboard
+projects/*/.kite
 projects/CLAUDE.md
 package-lock.json

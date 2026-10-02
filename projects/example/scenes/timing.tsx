@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { Fill, ease, mix, mixColor, progress, spring, type SceneProps, type SceneSounds } from 'storyboard';
+import { Fill, ease, mix, mixColor, progress, spring, type SceneProps, type SceneSounds } from 'kite';
 import { Headline, swapWords } from '../components/Headline';
 import { LogoMark, MARK_BARS, MARK_RADIUS, MARK_SIZE } from '../components/LogoMark';
 import { PILLS_TOP, Pills, STYLE_LABELS } from '../components/Pills';

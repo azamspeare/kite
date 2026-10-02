@@ -45,7 +45,7 @@ interface Scope {
   fileTools?: boolean;
 }
 
-export const FRAME_MARKER = 'storyboard-frames:';
+export const FRAME_MARKER = 'kite-frames:';
 
 type Content = { type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string };
 
@@ -65,13 +65,13 @@ function header(h: IncomingHttpHeaders, name: string): string | undefined {
 }
 
 function scopeFrom(h: IncomingHttpHeaders): Scope {
-  const kind = header(h, 'x-storyboard-scope');
+  const kind = header(h, 'x-kite-scope');
   if (kind === 'scene' || kind === 'project') {
     return {
       kind,
-      projectId: header(h, 'x-storyboard-project'),
-      sceneId: header(h, 'x-storyboard-scene'),
-      fileTools: header(h, 'x-storyboard-files') === 'scoped',
+      projectId: header(h, 'x-kite-project'),
+      sceneId: header(h, 'x-kite-scene'),
+      fileTools: header(h, 'x-kite-files') === 'scoped',
     };
   }
   return { kind: 'open' };
@@ -80,9 +80,7 @@ function scopeFrom(h: IncomingHttpHeaders): Scope {
 const projectArg = z
   .string()
   .optional()
-  .describe(
-    'Project id (its folder name under projects/). Optional inside the Storyboard app, where it defaults to the open project.',
-  );
+  .describe('Project id (its folder name under projects/). Optional inside the Kite app, where it defaults to the open project.');
 const sceneArg = z
   .string()
   .optional()
@@ -90,7 +88,7 @@ const sceneArg = z
 
 export function createToolServer(services: ToolServices, scope: Scope): McpServer {
   const { store, capturer, seams, engine, library, music, sfx, soundLibrary, sounds } = services;
-  const server = new McpServer({ name: 'storyboard', version: '1.0.0' });
+  const server = new McpServer({ name: 'kite', version: '1.0.0' });
 
   async function project(id?: string): Promise<ProjectState> {
     if (scope.kind !== 'open' && (!scope.projectId || (id && id !== scope.projectId))) {
@@ -217,7 +215,7 @@ export function createToolServer(services: ToolServices, scope: Scope): McpServe
 
   tool(
     'get_project',
-    'Overview of a Storyboard project: canvas, fps, every scene in order with id, name, duration, start time and file path, and the soundtrack. Call this first when you need the structure.',
+    'Overview of a Kite project: canvas, fps, every scene in order with id, name, duration, start time and file path, and the soundtrack. Call this first when you need the structure.',
     { project: projectArg },
     async (args) => text(describeProject(await project(args.project))),
     true,

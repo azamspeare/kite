@@ -8,11 +8,11 @@ import { formatSeconds } from '../util';
  * In-app agents skip instruction-file discovery, so the guide is always part of the system prompt.
  */
 function guideSection(): string {
-  return `\n\nThe Storyboard tools come from the storyboard MCP server. Use the names exposed by your tool interface, discovering deferred tools when needed.\n\n${SCENE_GUIDE.replace(GUIDE_MARKER, '').trim()}`;
+  return `\n\nThe Kite tools come from the kite MCP server. Use the names exposed by your tool interface, discovering deferred tools when needed.\n\n${SCENE_GUIDE.replace(GUIDE_MARKER, '').trim()}`;
 }
 
 export function sceneSystemPrompt(p: ProjectState, s: SceneState): string {
-  return `You are the motion designer and front-end engineer inside Storyboard, a prompt-driven video editor. The user is iterating on one scene in a chat next to a live preview; each message is usually a small, precise change.
+  return `You are the motion designer and front-end engineer inside Kite, a prompt-driven video editor. The user is iterating on one scene in a chat next to a live preview; each message is usually a small, precise change.
 
 Project: "${p.name}" (id "${p.id}"), canvas ${p.width}×${p.height} @ ${p.fps} fps.
 Your scene: "${s.name}" — id "${s.id}", file scenes/${s.id}.tsx
@@ -23,7 +23,7 @@ Rules for this chat:
 - The soundtrack is chosen and changed in the Project chat; here you can read its beat grid with get_music_context.
 - This scene's sound effects are its \`sounds\` export. You may add new sounds to the library (create_sound, or generate_sound when the sound-effects engine runs) but not replace existing ones — other scenes may use them.
 - Keep everything the user didn't ask to change: timing, the handoffs into and out of the neighbouring scenes, music sync and sound cues (move cues with the moments they belong to).
-- The storyboard tools default to this project and scene.
+- The kite tools default to this project and scene.
 
 How to work:
 1. Read the scene file first (and art-direction.md when the look is involved).
@@ -35,7 +35,7 @@ How to work:
 }
 
 export function projectSystemPrompt(p: ProjectState): string {
-  return `You are the motion designer and front-end engineer inside Storyboard, a prompt-driven video editor. This is the Project chat for "${p.name}" (id "${p.id}", ${p.width}×${p.height} @ ${p.fps} fps): the user talks about the video as a whole — structure, pacing, adding or reordering scenes, consistency between scenes, music sync and art direction.
+  return `You are the motion designer and front-end engineer inside Kite, a prompt-driven video editor. This is the Project chat for "${p.name}" (id "${p.id}", ${p.width}×${p.height} @ ${p.fps} fps): the user talks about the video as a whole — structure, pacing, adding or reordering scenes, consistency between scenes, music sync and art direction.
 
 Rules for this chat:
 - You may edit scenes/*.tsx, components/** and art-direction.md. Never edit project.json; use create_scene, duplicate_scene, delete_scene, move_scene, rename_scene, set_scene_duration and snap_cuts_to_music for structure and timing.
@@ -83,7 +83,7 @@ export function sceneTurnPrompt(p: ProjectState, s: SceneState, text: string, pl
     soundLibraryLine(p),
     sfxEngine ?? '',
   ].filter(Boolean);
-  return `<storyboard_context>\n${context.join('\n')}\n</storyboard_context>\n\n${text}`;
+  return `<kite_context>\n${context.join('\n')}\n</kite_context>\n\n${text}`;
 }
 
 export function projectTurnPrompt(p: ProjectState, text: string, playhead?: number, engines: string[] = []): string {
@@ -97,5 +97,5 @@ export function projectTurnPrompt(p: ProjectState, text: string, playhead?: numb
     soundLibraryLine(p),
     ...engines,
   ].filter(Boolean);
-  return `<storyboard_context>\n${context.join('\n')}\n</storyboard_context>\n\n${text}`;
+  return `<kite_context>\n${context.join('\n')}\n</kite_context>\n\n${text}`;
 }

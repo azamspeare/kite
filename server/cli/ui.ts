@@ -1,6 +1,6 @@
-// How ./storyboard looks: a rail down the left that joins the steps, like this:
+// How ./kite looks: a rail down the left that joins the steps, like this:
 //
-//   ┌  Storyboard setup
+//   ┌  Kite setup
 //   │
 //   ◇  Basics
 //   │  ✓ Node.js 22.23.3
@@ -79,10 +79,10 @@ export function railText(text: string, paint: (t: string) => string = (t) => t):
 }
 
 export const rail = {
-  /** ┌ The first line of a command's output (a launcher that already opened the rail passes STORYBOARD_RAIL=open). */
+  /** ┌ The first line of a command's output (a launcher that already opened the rail passes KITE_RAIL=open). */
   open(title: string, subtitle?: string) {
-    if (process.env.STORYBOARD_RAIL === 'open') {
-      delete process.env.STORYBOARD_RAIL;
+    if (process.env.KITE_RAIL === 'open') {
+      delete process.env.KITE_RAIL;
     } else {
       print(`${gray('┌')}  ${bold(title)}`);
     }

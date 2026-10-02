@@ -46,7 +46,7 @@ const root = createRoot(document.getElementById('root')!);
 type Outgoing = FrameMessage extends infer M ? (M extends FrameMessage ? Omit<M, 'source'> : never) : never;
 
 function post(msg: Outgoing) {
-  if (window.parent !== window) window.parent.postMessage({ source: 'sb-frame', ...msg }, '*');
+  if (window.parent !== window) window.parent.postMessage({ source: 'kite-frame', ...msg }, '*');
 }
 
 /** Make stack lines readable: project-relative paths, no dev-server origin or cache-busting queries. */
@@ -327,7 +327,7 @@ function Stage(props: { p: ProjectState; pick: { scene: SceneState; local: numbe
   }
   return (
     <div
-      data-sb-stage=""
+      data-kite-stage=""
       style={{
         position: 'absolute',
         left: x,
@@ -436,14 +436,14 @@ const api: FrameApi = {
   errors: () => lastErrors,
   sounds: () => collectSounds(),
 };
-window.__sb = api;
+window.__kite = api;
 
 window.addEventListener('resize', () => {
   if (project) renderAt(currentT);
 });
 
 if (import.meta.hot && mode !== 'capture') {
-  import.meta.hot.on('sb:project-changed', (data: { projectId: string }) => {
+  import.meta.hot.on('kite:project-changed', (data: { projectId: string }) => {
     if (data.projectId === projectId) void reload();
   });
 }

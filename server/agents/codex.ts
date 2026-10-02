@@ -15,7 +15,7 @@ const EFFORTS = ['low', 'medium', 'high', 'xhigh'];
 export function codexEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   // Use the CLI's saved login, not an API key accidentally inherited from the server.
-  if (!process.env.STORYBOARD_USE_API_KEY) {
+  if (!process.env.KITE_USE_API_KEY) {
     delete env.OPENAI_API_KEY;
     delete env.CODEX_API_KEY;
   }
@@ -99,9 +99,9 @@ export function codexArgs(turn: AgentTurn): string[] {
     sandbox_mode: 'read-only',
     model_provider: 'openai',
     model_reasoning_effort: turn.effort,
-    developer_instructions: `${turn.systemPrompt}\n\nUse list_project_files, read_project_file, edit_project_file and write_project_file for project code. Discover Storyboard tools with tool_search if they are not exposed yet. Paths are relative to the project. Shell and apply_patch cannot edit files in this session; all changes go through the scoped Storyboard tools.`,
+    developer_instructions: `${turn.systemPrompt}\n\nUse list_project_files, read_project_file, edit_project_file and write_project_file for project code. Discover Kite tools with tool_search if they are not exposed yet. Paths are relative to the project. Shell and apply_patch cannot edit files in this session; all changes go through the scoped Kite tools.`,
     project_doc_max_bytes: 0,
-    project_root_markers: ['.storyboard-agent-root'],
+    project_root_markers: ['.kite-agent-root'],
     web_search: 'disabled',
     'agents.enabled': false,
     'skills.bundled.enabled': false,
@@ -167,7 +167,7 @@ export class CodexProvider implements AgentProvider {
       detail = `Codex CLI not found (${this.bin}). Install it from https://developers.openai.com/codex/cli, then run codex login, or set CODEX_PATH.`;
     else if (!status.supported)
       detail =
-        'Update Codex CLI (0.159.0 or newer recommended). Storyboard needs exec --ignore-user-config and --ignore-rules to isolate its tools.';
+        'Update Codex CLI (0.159.0 or newer recommended). Kite needs exec --ignore-user-config and --ignore-rules to isolate its tools.';
     else if (status.loggedIn === false) detail = 'Codex is not logged in. Run `codex login` in a terminal, then try again.';
     return {
       ok: !detail,
@@ -186,14 +186,14 @@ export class CodexProvider implements AgentProvider {
     // An app-owned root prevents project .codex settings from adding tools or hooks. File access is via MCP only.
     const cwd = this.workDir;
     await fs.promises.mkdir(cwd, { recursive: true });
-    await fs.promises.writeFile(path.join(cwd, '.storyboard-agent-root'), '');
+    await fs.promises.writeFile(path.join(cwd, '.kite-agent-root'), '');
     const queue = new AsyncQueue<AgentEvent>();
     const child = spawn(this.bin, codexArgs(turn), { cwd, env: codexEnv(), stdio: ['pipe', 'pipe', 'pipe'] });
     const started = Date.now();
     let stderr = '';
     let closed = false;
     const parser = new CodexParser((event) => queue.push(event));
-    const log = process.env.STORYBOARD_AGENT_LOG ? fs.createWriteStream(process.env.STORYBOARD_AGENT_LOG, { flags: 'a' }) : null;
+    const log = process.env.KITE_AGENT_LOG ? fs.createWriteStream(process.env.KITE_AGENT_LOG, { flags: 'a' }) : null;
     log?.on('error', () => undefined);
     child.stdin.on('error', () => undefined);
     child.stdin.end(turn.prompt);

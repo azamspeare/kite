@@ -8,8 +8,6 @@ UI conventions for Kite, the editor in this repository. Keep them consistent acr
 
 **What this file does not cover:** the videos Kite makes. A scene can look like anything the user asks for. This file governs only the app around the scenes. Scene frames (`frame.html`) never load the editor's stylesheet: Tailwind scans only `src/editor/` (`source(none)` and `@source '.'` at the top of `styles.css`), so nothing here can change a preview or a render.
 
-The product name in the UI is **Kite**. The CLI, the docs, the agent prompts and storage keys (`sb:*`) still say Storyboard; renaming them is a separate change.
-
 ---
 
 ## 1. Color
@@ -154,9 +152,9 @@ Full screen on black. The controls float as a dark rounded pill (`zinc-950/75`, 
 
 Components are **shadcn on the Base UI base** (style `base-nova`, `components.json`), copied from Rika into `src/editor/components/ui/`: `Button` (with Catalyst), `Collapsible`, `Dialog`, `Empty`, `Input`, `Item`, `Kbd`, `Select`, `Separator`, `Spinner`, `Textarea`. Kite's own shared pieces live in `src/editor/components/ui.tsx`: `ISLAND`, `ISLAND_HEADER`, `Segmented` (tabs on a `muted` track with a white pill), `Picker` (a `Select` from a list of options; `quiet` for the composer), `Modal` (a `Dialog` that is open while rendered), `Notice` (an error or warning line) and `RichText`.
 
-- **shadcn first.** The shadcn CLI is not a dependency (its 34 dependencies would come with it); `src/editor/shadcn.css` is the one file Kite uses from that package, vendored. To add a component, copy it from Rika or from the shadcn registry by hand, then swap any `lucide-react` icon for Heroicons.
+- **shadcn first.** If shadcn has the component, add it with `npm run shadcn -- add <name>`: it writes to `src/editor/components/ui/` on Base UI and imports `cn`. Do not hand-build a styled `div` or `button` where a component exists. The CLI may rewrite tokens in `styles.css` when a preset is applied; Kite's values win, so check the diff.
 - **The copied kit is exempt from the token rules.** Its files keep shadcn's own `oklch()` literals (the Catalyst recipes) and `dark:` variants, so they stay easy to compare with upstream; `dark:` does nothing because `.dark` is never set. Kite's own components follow section 1.
-- **`components.json` says `lucide`** because shadcn has no Heroicons option: a component added from the registry comes with `lucide-react` imports, which must be swapped for Heroicons (the package is not installed).
+- **`components.json` asks for Hugeicons**, so added components draw their icons with `@hugeicons/react`, which is installed. Swap them for Heroicons where Heroicons has the icon, to match the rest of the UI.
 - **Override, do not fork.** When a stock component does not fit, pass `className` or edit the copied file, and say why in a comment.
 - **Two button styles.** Stock shadcn for everyday controls; `<Button catalyst>` for a screen's main action (Present, Render MP4, Create project, Save art direction). `color="action"` is the blue one.
 - **Base UI, not Radix.** Custom triggers use the `render` prop; a `Button` rendered as a link needs `nativeButton={false}`.

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { Fill, ease, progress, type SceneProps, type SceneSounds } from 'storyboard';
+import { Fill, ease, progress, type SceneProps, type SceneSounds } from 'kite';
 import { Headline, type WordState } from '../components/Headline';
 import { LOOKS, PromptCard, type LayerName } from '../components/PromptCard';
 import { BG, CARD, HEADLINE_SIZE, HEADLINE_TOP, INK, MONO, PINK } from '../components/tokens';

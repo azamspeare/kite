@@ -257,7 +257,7 @@ function Composer({ scopeKey, busy, fill }: { scopeKey: string; busy: boolean; f
   const { model, effort, efforts } = agent
     ? modelSelection(agent, savedModel, savedEffort)
     : { model: '', effort: '', efforts: [] };
-  const draftKey = `sb:draft:${project.id}/${scopeKey}`;
+  const draftKey = `kite:draft:${project.id}/${scopeKey}`;
   const [text, setText] = useState(() => sessionStorage.getItem(draftKey) ?? '');
   const area = useRef<HTMLTextAreaElement>(null);
 

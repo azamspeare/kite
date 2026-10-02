@@ -1,4 +1,4 @@
-// ./storyboard <command>: set up and run Storyboard. The `storyboard` script in the repo root makes sure Node.js and
+// ./kite <command>: set up and run Kite. The `kite` script in the repo root makes sure Node.js and
 // the npm dependencies are there, then runs this file.
 import { doctor } from '../doctor';
 import { parseServices, parseSetup } from './args';
@@ -8,17 +8,17 @@ import { holdInput, releaseInput, setCancelHandler } from './input';
 import { BAR, bold, cyan, dim, gray, rail, stopLive, yellow } from './ui';
 
 const COMMANDS: [command: string, what: string][] = [
-  ['setup', 'Install Storyboard, or change what it uses'],
+  ['setup', 'Install Kite, or change what it uses'],
   ['start', 'Start it, and the engines you turned on'],
-  ['stop', 'Stop what ./storyboard start started'],
+  ['stop', 'Stop what ./kite start started'],
   ['restart', 'Stop, then start again'],
   ['status', 'What’s on, installed and running'],
   ['logs [-f]', 'Show the log (-f keeps following it)'],
-  ['doctor', 'Check everything Storyboard needs'],
+  ['doctor', 'Check everything Kite needs'],
 ];
 
 function help() {
-  rail.open('Storyboard', 'Prompt-driven motion design. Usage: ./storyboard <command>');
+  rail.open('Kite', 'Prompt-driven motion design. Usage: ./kite <command>');
   rail.gap();
   for (const [command, what] of COMMANDS) console.log(`${BAR}  ${cyan(command.padEnd(12))}${what}`);
   rail.gap();
@@ -27,7 +27,7 @@ function help() {
     `${BAR}  ${dim('logs setup shows the last setup · setup --yes [--provider=claude-code|codex] [--music=on|off] [--sfx=on|off] asks nothing')}`,
   );
   console.log(`${BAR}  ${dim('setup --host=0.0.0.0 --port=5299 saves the bind address and port (--ip is an alias for --host)')}`);
-  console.log(`${gray('└')}  ${bold('Start here:')} ${cyan('./storyboard setup')}\n`);
+  console.log(`${gray('└')}  ${bold('Start here:')} ${cyan('./kite setup')}\n`);
 }
 
 function usage(message: string): number {
@@ -61,8 +61,8 @@ async function main(): Promise<number> {
     case 'restart': {
       const targets = ids ?? defaultServices();
       if (!targets) {
-        rail.open('Storyboard');
-        rail.close(`Not set up yet · run ${cyan('./storyboard setup')} first`, 'warn');
+        rail.open('Kite');
+        rail.close(`Not set up yet · run ${cyan('./kite setup')} first`, 'warn');
         return 1;
       }
       // Ctrl+C only stops the waiting; the services keep starting in the background.
@@ -71,7 +71,7 @@ async function main(): Promise<number> {
           stopLive();
           releaseInput();
           console.log(
-            `${BAR}\n${yellow('■')}  Stopped waiting ${dim('· they keep starting in the background: ./storyboard status')}\n`,
+            `${BAR}\n${yellow('■')}  Stopped waiting ${dim('· they keep starting in the background: ./kite status')}\n`,
           );
         } catch {
           // the terminal window was closed

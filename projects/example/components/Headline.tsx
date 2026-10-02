@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { ease, progress } from 'storyboard';
+import { ease, progress } from 'kite';
 import { DISPLAY, HEADLINE_SIZE, HEADLINE_TOP, INK } from './tokens';
 
 export interface WordState {

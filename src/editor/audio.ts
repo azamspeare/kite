@@ -56,7 +56,7 @@ class PreviewAudio {
         .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(`HTTP ${res.status}`))))
         .then((data) => (this.decoder ??= new OfflineAudioContext(2, 1, 48000)).decodeAudioData(data))
         .catch((e: Error) => {
-          console.warn(`[storyboard] could not load ${url}: ${e.message}`);
+          console.warn(`[kite] could not load ${url}: ${e.message}`);
           this.buffers.delete(url);
           return null;
         });

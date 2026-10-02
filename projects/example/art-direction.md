@@ -1,4 +1,4 @@
-# Art direction — Storyboard teaser
+# Art direction — Kite teaser
 
 Light, precise, product-first. One idea per scene; the cut between scenes should be invisible whenever an object carries on.
 

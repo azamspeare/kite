@@ -269,7 +269,7 @@ export async function measureLoudness(file: string): Promise<string | null> {
 }
 
 export async function renderSpectrogram(file: string): Promise<Buffer | null> {
-  const out = path.join(os.tmpdir(), `sb-spectrum-${randomUUID().slice(0, 8)}.jpg`);
+  const out = path.join(os.tmpdir(), `kite-spectrum-${randomUUID().slice(0, 8)}.jpg`);
   try {
     await execFileAsync(FFMPEG, [
       '-v',

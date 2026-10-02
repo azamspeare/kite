@@ -1,4 +1,4 @@
-// ./storyboard setup: checks the basics, installs Storyboard's packages and headless Chromium, and asks which
+// ./kite setup: checks the basics, installs Kite's packages and headless Chromium, and asks which
 // optional engines to use (music, sound effects). Run it again any time: the current choices are the defaults, and
 // turning something off offers to remove its files. Everything it installs stays in the app folder.
 import fs from 'node:fs';
@@ -134,7 +134,7 @@ async function ensureFfmpeg(ask: boolean): Promise<boolean> {
     return {
       ok: false,
       label: check.label.startsWith('ffmpeg not found') ? 'ffmpeg isn’t installed' : check.label,
-      why: 'Storyboard renders videos with it.',
+      why: 'Kite renders videos with it.',
       fix: check.fix,
       fixes,
     };
@@ -217,7 +217,7 @@ async function chooseAgent(ask: boolean, choice?: AgentProviderId): Promise<Agen
     (claude.loggedIn ? 'claude-code' : codex.loggedIn && codex.supported ? 'codex' : 'claude-code');
   if (!ask || choice) return preferred;
   return select(
-    'Which agent should Storyboard use by default?',
+    'Which agent should Kite use by default?',
     [
       { value: 'claude-code' as const, label: 'Claude Code', hint: 'your Claude login · switch in the editor any time' },
       { value: 'codex' as const, label: 'Codex', hint: 'your Codex login · switch in the editor any time' },
@@ -227,7 +227,7 @@ async function chooseAgent(ask: boolean, choice?: AgentProviderId): Promise<Agen
 }
 
 // ---------------------------------------------------------------------------
-// Storyboard's own packages and headless Chromium
+// Kite's own packages and headless Chromium
 
 /** npm packages: `npm ci --ignore-scripts` whenever package-lock.json is newer than what's installed. */
 async function ensurePackages(): Promise<boolean> {
@@ -236,15 +236,15 @@ async function ensurePackages(): Promise<boolean> {
     fs.existsSync(installed) && fs.statSync(installed).mtimeMs >= fs.statSync(path.join(ROOT, 'package-lock.json')).mtimeMs;
   if (current) {
     // On a fresh clone the launcher has just installed them, and says how many.
-    const fresh = process.env.STORYBOARD_NPM_INSTALLED;
+    const fresh = process.env.KITE_NPM_INSTALLED;
     rail.done('npm packages', fresh ? `${fresh} packages · exact versions, no install scripts` : 'up to date');
     return true;
   }
-  // Replacing node_modules under a running Storyboard would break it.
+  // Replacing node_modules under a running Kite would break it.
   if ((await appRunning()) === 'here') {
     if (!(await runningProcess('app'))) {
-      rail.fail('Storyboard is running, and its packages need an update');
-      rail.hint('Stop it (Ctrl+C where it runs), then run ./storyboard setup again');
+      rail.fail('Kite is running, and its packages need an update');
+      rail.hint('Stop it (Ctrl+C where it runs), then run ./kite setup again');
       return false;
     }
     await stop(['app'], { embedded: true, quiet: true });
@@ -470,7 +470,7 @@ async function huggingFaceToken(ask: boolean): Promise<string | null> {
     const create = await select(
       {
         title: 'Create an access token',
-        lines: railText('Name it (say, “storyboard”), keep the type “Read”, click “Create token” and copy it.', dim),
+        lines: railText('Name it (say, “kite”), keep the type “Read”, click “Create token” and copy it.', dim),
       },
       [
         { value: true, label: 'Open the token page' },
@@ -572,7 +572,7 @@ async function chooseSfx(
   }
   const token = await huggingFaceToken(ask);
   if (!token) {
-    rail.info('Sound effects stay off for now; run ./storyboard setup again to turn them on');
+    rail.info('Sound effects stay off for now; run ./kite setup again to turn them on');
     return off;
   }
   return { on, moveFrom: null, remove: false, token };
@@ -626,7 +626,7 @@ async function chooseCleanup(music: EngineChoice, sfx: EngineChoice): Promise<Re
 // ---------------------------------------------------------------------------
 // Doing it
 
-/** Stop an engine run by ./storyboard (or the npm scripts before it) before its files change. */
+/** Stop an engine run by ./kite (or the npm scripts before it) before its files change. */
 async function stopIfRunning(id: ServiceId, onlyIf: (legacy: boolean) => boolean = () => true) {
   const running = await runningProcess(id);
   if (running && onlyIf(running.pidFile.startsWith(LEGACY_STATE_DIR + path.sep))) {
@@ -655,7 +655,7 @@ async function apply(
   if (music.on) {
     rail.section('Music generation', 'installing');
     const needs = await musicNeeds();
-    // A copy from before ./storyboard runs elsewhere and holds the port; an update changes the files it runs from.
+    // A copy from before ./kite runs elsewhere and holds the port; an update changes the files it runs from.
     await stopIfRunning('music', (legacy) => legacy || needs.checkout || needs.environment || Boolean(music.moveFrom));
     done.music = await installMusic({ moveModelsFrom: music.moveFrom });
   }
@@ -686,8 +686,8 @@ async function apply(
 async function runSetup(opts: SetupOptions): Promise<boolean> {
   const ask = !opts.yes;
   if (ask && !isInteractive()) {
-    console.error('./storyboard setup asks a few questions, so run it in a terminal.');
-    console.error('In scripts: ./storyboard setup --yes [--provider=claude-code|codex] [--music=on|off] [--sfx=on|off]');
+    console.error('./kite setup asks a few questions, so run it in a terminal.');
+    console.error('In scripts: ./kite setup --yes [--provider=claude-code|codex] [--music=on|off] [--sfx=on|off]');
     return false;
   }
   setCancelHandler(() => {
@@ -696,9 +696,7 @@ async function runSetup(opts: SetupOptions): Promise<boolean> {
     try {
       stopLive();
       releaseInput();
-      console.log(
-        `${BAR}\n${yellow('■')}  Setup stopped ${dim('· run ./storyboard setup again to pick up where it left off')}\n`,
-      );
+      console.log(`${BAR}\n${yellow('■')}  Setup stopped ${dim('· run ./kite setup again to pick up where it left off')}\n`);
     } catch {
       // the terminal window was closed
     }
@@ -707,7 +705,7 @@ async function runSetup(opts: SetupOptions): Promise<boolean> {
   if (ask) holdInput();
   startSetupLog();
 
-  rail.open('Storyboard setup', `Everything installs inside ${shown(ROOT)}. Run this again any time to change your choices.`);
+  rail.open('Kite setup', `Everything installs inside ${shown(ROOT)}. Run this again any time to change your choices.`);
   const missing: string[] = [];
 
   rail.section('Basics');
@@ -717,9 +715,9 @@ async function runSetup(opts: SetupOptions): Promise<boolean> {
   if (!(await (provider === 'codex' ? ensureCodex(ask) : ensureClaude(ask))))
     missing.push(`${provider === 'codex' ? 'Codex' : 'Claude Code'}, logged in (the chat needs it)`);
 
-  rail.section('Storyboard');
+  rail.section('Kite');
   if (!(await ensurePackages())) {
-    rail.close('Setup stopped: Storyboard’s packages couldn’t be installed', 'fail');
+    rail.close('Setup stopped: Kite’s packages couldn’t be installed', 'fail');
     return false;
   }
   if (!(await ensureChromium(ask))) missing.push('headless Chromium (previews and renders need it)');
@@ -749,7 +747,7 @@ async function runSetup(opts: SetupOptions): Promise<boolean> {
   if (problems.length) {
     rail.section('Almost there');
     problems.forEach((p) => rail.warn(p));
-    rail.hint('Run ./storyboard setup again to finish');
+    rail.hint('Run ./kite setup again to finish');
   }
   const outcome = problems.length ? 'Setup finished with problems' : 'Setup done';
   const tone = problems.length ? 'warn' : 'ok';
@@ -757,34 +755,34 @@ async function runSetup(opts: SetupOptions): Promise<boolean> {
   if (wasRunning && (previousHost !== HOST || previousPort !== PORT)) {
     rail.gap();
     rail.warn('Network settings saved; the running app still uses its old address and port');
-    rail.hint('Apply them with ./storyboard restart app, or Ctrl+C and restart if you use npm run dev');
+    rail.hint('Apply them with ./kite restart app, or Ctrl+C and restart if you use npm run dev');
     rail.close(outcome, tone);
     return true;
   }
   if ((await appRunning()) === 'here' && !(await runningProcess('app'))) {
     rail.gap();
-    rail.warn('Storyboard is running, but wasn’t started by ./storyboard');
-    rail.hint('Restart it to pick up these changes: stop it (Ctrl+C where it runs), then ./storyboard start');
+    rail.warn('Kite is running, but wasn’t started by ./kite');
+    rail.hint('Restart it to pick up these changes: stop it (Ctrl+C where it runs), then ./kite start');
     rail.close(outcome, tone);
     return true;
   }
   const startNow =
     ask &&
-    (await select('Start Storyboard now?', [
+    (await select('Start Kite now?', [
       { value: true, label: 'Yes', hint: 'opens it in your browser' },
       { value: false, label: 'Not now' },
     ]));
   if (!startNow) {
-    rail.close(`${outcome} · start it with ${cyan('./storyboard start')}`, tone);
+    rail.close(`${outcome} · start it with ${cyan('./kite start')}`, tone);
     return true;
   }
   rail.section('Starting');
   await start(defaultServices() ?? ['app'], { embedded: true });
   if (await probe('app')) {
     openUrl(BASE_URL);
-    rail.close(`Storyboard is running at ${cyan(BASE_URL)}  ${dim('· stop it with ./storyboard stop')}`);
+    rail.close(`Kite is running at ${cyan(BASE_URL)}  ${dim('· stop it with ./kite stop')}`);
   } else {
-    rail.close('Storyboard didn’t start (see above)', 'fail');
+    rail.close('Kite didn’t start (see above)', 'fail');
   }
   return true;
 }

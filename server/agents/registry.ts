@@ -27,7 +27,7 @@ export class AgentRegistry {
     );
     const defaultProvider = this.preference ?? agents.find((p) => p.ok)?.id ?? agents[0].id;
     for (const agent of agents) {
-      if (agent.id === defaultProvider && process.env.STORYBOARD_MODEL) agent.model = process.env.STORYBOARD_MODEL;
+      if (agent.id === defaultProvider && process.env.KITE_MODEL) agent.model = process.env.KITE_MODEL;
       if (!agent.models.some((m) => m.id === agent.model)) {
         const fallback = agent.models[0];
         agent.models.unshift({ ...fallback, id: agent.model, label: agent.model });

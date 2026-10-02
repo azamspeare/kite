@@ -1,5 +1,5 @@
-// uv installs the engines' Python environments. Storyboard keeps its own copy in .storyboard/bin, pinned to one
-// release and checked against the SHA-256 below, and keeps uv's Python and download cache in .storyboard/uv too.
+// uv installs the engines' Python environments. Kite keeps its own copy in .kite/bin, pinned to one
+// release and checked against the SHA-256 below, and keeps uv's Python and download cache in .kite/uv too.
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -46,7 +46,7 @@ async function installedVersion(): Promise<string | null> {
   return (await output(UV_BIN, ['--version']))?.split(' ')[1] ?? null;
 }
 
-/** Make sure the pinned uv is in .storyboard/bin; downloads and verifies it when needed. False when that fails. */
+/** Make sure the pinned uv is in .kite/bin; downloads and verifies it when needed. False when that fails. */
 export async function ensureUv(): Promise<boolean> {
   if ((await installedVersion()) === UV_VERSION) return true;
   const task = new Task(`uv ${UV_VERSION}`);

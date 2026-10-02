@@ -1,4 +1,4 @@
-// Command-line arguments of ./storyboard.
+// Command-line arguments of ./kite.
 import type { ServiceId } from './services';
 import type { SetupOptions } from './setup';
 import { validHost, validPort } from '../network';
@@ -9,7 +9,7 @@ const SERVICES: ServiceId[] = ['app', 'music', 'sfx'];
 export function parseServices(args: string[]): ServiceId[] | null {
   const names = args.filter((a) => !a.startsWith('-'));
   if (names.includes('all')) return [...SERVICES];
-  const ids = names.map((n) => (n === 'storyboard' ? 'app' : n));
+  const ids = names.map((n) => (n === 'kite' ? 'app' : n));
   return ids.every((id): id is ServiceId => (SERVICES as string[]).includes(id)) ? [...new Set(ids)] : null;
 }
 

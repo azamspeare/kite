@@ -52,7 +52,7 @@ export interface AgentProviderStatus {
   detail?: string;
 }
 
-/** An agent that runs turns against the scoped Storyboard tools. */
+/** An agent that runs turns against the scoped Kite tools. */
 export interface AgentProvider {
   id: AgentProviderId;
   label: string;

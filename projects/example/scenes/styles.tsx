@@ -1,4 +1,4 @@
-import { Fill, ease, keyframes, mix, progress, type SceneProps, type SceneSounds } from 'storyboard';
+import { Fill, ease, keyframes, mix, progress, type SceneProps, type SceneSounds } from 'kite';
 import { Headline, swapWords } from '../components/Headline';
 import { PILLS_TOP, Pills, STYLE_LABELS, pillLayout } from '../components/Pills';
 import { LOOKS, PromptCard, VARIANTS } from '../components/PromptCard';
