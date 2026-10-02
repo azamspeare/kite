@@ -92,7 +92,7 @@ export function Projects() {
     loadProjects().catch(toastError);
   }, []);
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3">
+    <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pt-px pb-3">
       <div className="flex grow flex-col rounded-3xl bg-background p-6 shadow-xs ring-1 ring-foreground/5 lg:p-10">
         <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col">
           <div className="flex flex-wrap items-end justify-between gap-4">
