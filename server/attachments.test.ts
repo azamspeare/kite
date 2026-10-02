@@ -92,3 +92,16 @@ test('a message can only point at attachments that exist in this project', async
   for (const bad of ['../etc.png', 'abc.png', '/tmp/a1b2c3-x.png', 'a1b2c3-x.png'])
     await rejects(findAttachments(dir, [bad]), 400, /attached file is missing/);
 });
+
+test('an SVG that could run script is refused; a plain one is kept', async (t) => {
+  const dir = await project(t);
+  const plain = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#3cbbf9"/></svg>';
+  assert.equal((await saveAttachment(dir, 'mark.svg', Buffer.from(plain))).kind, 'image');
+  for (const bad of [
+    '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><div/></foreignObject></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg"><a href="javascript:alert(1)"><rect/></a></svg>',
+  ])
+    await rejects(saveAttachment(dir, 'bad.svg', Buffer.from(bad)), 415, /PNG/);
+});

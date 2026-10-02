@@ -30,8 +30,6 @@ import {
  * Whether a key belongs to what has focus rather than to the editor: a field, a picker (Base UI's select
  * trigger is a button with the combobox role), or anything inside a dialog, such as Help.
  */
-type DropZone = 'music' | 'sounds' | 'composer';
-
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
   return Boolean(
@@ -44,6 +42,8 @@ function isTyping(target: EventTarget | null) {
       el.closest?.('[role="dialog"]')),
   );
 }
+
+type DropZone = 'music' | 'sounds' | 'composer';
 
 export function App() {
   const project = useEditor((s) => s.project);

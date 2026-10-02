@@ -218,8 +218,14 @@ export class ChatManager {
       const turn: AgentTurn = {
         cwd: project.dir,
         prompt: scene
-          ? sceneTurnPrompt(project, scene, user.text, input.playhead, this.deps.sfx.describe(), user)
-          : projectTurnPrompt(project, user.text, input.playhead, [this.deps.engine.describe(), this.deps.sfx.describe()], user),
+          ? sceneTurnPrompt(project, scene, user.text, input.playhead, this.deps.sfx.describe(), {
+              ...user,
+              provider: provider.id,
+            })
+          : projectTurnPrompt(project, user.text, input.playhead, [this.deps.engine.describe(), this.deps.sfx.describe()], {
+              ...user,
+              provider: provider.id,
+            }),
         systemPrompt: scene ? sceneSystemPrompt(project, scene) : projectSystemPrompt(project),
         sessionId,
         resume,

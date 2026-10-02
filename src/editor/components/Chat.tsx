@@ -285,6 +285,8 @@ export function Chat({ scopeKey }: { scopeKey: string }) {
       if (stick.current) el.scrollTop = el.scrollHeight;
     });
     ro.observe(content);
+    // The transcript also shrinks when the composer grows (attached files, a longer message).
+    ro.observe(el);
     return () => ro.disconnect();
   }, []);
 

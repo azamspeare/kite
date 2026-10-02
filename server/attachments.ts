@@ -22,6 +22,12 @@ const indexLock = new KeyedMutex();
 const indexFile = (projectDir: string) => path.join(projectDir, INTERNAL_DIR, 'attachments.json');
 const MB = 1024 * 1024;
 
+/**
+ * SVG is markup: opened on its own it runs in the editor's origin, next to /api. Anything that could run
+ * script (script elements, event attributes, javascript: links, embedded HTML) is refused.
+ */
+const ACTIVE_SVG = /<script|\son[a-z]+\s*=|javascript:|<foreignObject/i;
+
 /** The attachment's stem, without its random prefix or extension: a good default name for a sound made from it. */
 export function attachmentStem(id: string): string {
   return id.replace(/^[a-z0-9]{6}-/, '').replace(/\.[a-z0-9]+$/, '');
@@ -47,6 +53,9 @@ export async function saveAttachment(projectDir: string, originalName: string, d
     throw new HttpError(413, `${kind === 'image' ? 'Images' : 'Audio files'} are limited to ${limit / MB} MB`);
 
   const ext = path.extname(name).slice(1).toLowerCase();
+  if (ext === 'svg' && ACTIVE_SVG.test(data.toString('utf8'))) {
+    throw new HttpError(415, `“${name}” contains scripts, which Kite doesn't attach. Export it as a PNG instead.`);
+  }
   const stem =
     path
       .basename(name, path.extname(name))

@@ -17,7 +17,11 @@ test('"@" opens the scenes for a trailing mention after a space or at the start'
   assert.deepEqual(mentionQuery('then @'), { word: '', digits: '' });
   assert.deepEqual(mentionQuery('then @3'), { word: '', digits: '3' });
   assert.equal(mentionQuery('a@b'), null);
-  assert.equal(mentionQuery('@scene 2'), null);
+  // A mention typed out in full keeps filtering: "@Scene 2" narrows the list to scene 2.
+  assert.deepEqual(mentionQuery('see @Scene 2'), { word: 'Scene', digits: '2' });
+  assert.deepEqual(mentionQuery('see @Scene '), { word: 'Scene', digits: '' });
+  assert.equal(mentionQuery('@ 2'), null);
+  assert.equal(mentionQuery('@Scene 2 '), null);
 });
 
 test('choosing a scene writes "@Scene N " in place of the query and puts the caret after it', () => {

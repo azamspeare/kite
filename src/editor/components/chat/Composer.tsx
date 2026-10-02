@@ -252,8 +252,11 @@ export function Composer({ scopeKey, busy, fill }: { scopeKey: string; busy: boo
       });
     } catch (e) {
       setText(sent.text);
-      setFiles(sent.files);
-      toastError(e);
+      // A file from a saved draft can be gone from assets/; sending again would fail the same way.
+      const missing = e instanceof Error && /attached file is missing/i.test(e.message);
+      setFiles(missing ? [] : sent.files);
+      if (missing) setNotice('An attached file is missing, so the files were removed. Attach them again.');
+      else toastError(e);
     }
   }
 
@@ -296,6 +299,10 @@ export function Composer({ scopeKey, busy, fill }: { scopeKey: string; busy: boo
   }
 
   function onPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    // Office and Keynote put a picture of copied text next to the text itself (plain and HTML): that paste
+    // is text. A copied image (HTML only) or a file from Finder (plain text: its name) still attaches.
+    const types = event.clipboardData.types;
+    if (types.includes('text/html') && types.includes('text/plain')) return;
     const pasted = [...event.clipboardData.items].flatMap((item) => {
       const file = item.kind === 'file' ? item.getAsFile() : null;
       return file ? [file] : [];

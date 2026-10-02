@@ -77,6 +77,13 @@ export interface MessageExtras {
   tool?: ChatToolId;
   files?: Attachment[];
   scenes?: string[];
+  /** Who runs the turn: only Claude can look at images. */
+  provider?: string;
+}
+
+/** A name the user gave a file, safe inside the context block: no quotes, angle brackets or control characters. */
+function safeName(name: string): string {
+  return name.replace(/[\x00-\x1f"<>]/g, '');
 }
 
 function clock(seconds: number): string {
@@ -97,12 +104,18 @@ export function messageContext(p: ProjectState, chat: 'scene' | 'project', messa
   if (files.length) {
     const named = files.map((f) =>
       f.kind === 'audio'
-        ? `assets/${f.id} (audio${f.duration !== undefined ? `, ${clock(f.duration)}` : ''}, "${f.name}")`
-        : `assets/${f.id} (image, "${f.name}")`,
+        ? `assets/${f.id} (audio${f.duration !== undefined ? `, ${clock(f.duration)}` : ''}, "${safeName(f.name)}")`
+        : `assets/${f.id} (image, "${safeName(f.name)}")`,
     );
-    lines.push(
-      `Attached to this message (in assets/; open images with Read, show them in a scene with asset('<file>')): ${named.join('; ')}.`,
-    );
+    // asset() adds the assets/ folder itself, so the call takes the bare file name.
+    const image = files.find((f) => f.kind === 'image');
+    const example = image ? `asset('${image.id}')` : '';
+    const how = !image
+      ? 'in assets/'
+      : message.provider === 'codex'
+        ? `in assets/; you can't view images here, so use them by file name; a scene shows one with ${example}`
+        : `in assets/; open images with Read; a scene shows one with ${example}`;
+    lines.push(`Attached to this message (${how}): ${named.join('; ')}.`);
     if (files.some((f) => f.kind === 'audio')) {
       lines.push(
         chat === 'project'

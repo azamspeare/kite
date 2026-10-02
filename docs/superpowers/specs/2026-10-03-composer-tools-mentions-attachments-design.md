@@ -173,3 +173,9 @@ scenes?: string[];
    - a sent message shows its files, tool and highlighted mention;
    - the draft survives a reload.
 4. One real Claude turn: an attached PNG is opened with Read; an attached WAV, with "use this as a whoosh on the cut", becomes a sound through `add_sound_from_attachment`. The test files are cleaned up afterwards.
+
+## Changes made during the build
+
+- **Durations** of attached audio are measured once on upload and kept in `.kite/attachments.json`; `findAttachments` reads them from there instead of decoding again.
+- **After review:** the context line is provider-aware (Claude: "open images with Read"; Codex: "you can't view images here, use them by file name") and spells out the exact `asset('<file name>')` call; user file names are stripped of quotes, angle brackets and control characters in the prompt; SVGs that could run script are refused; the upload route answers 400 for an unreadable file name and 413 from `Content-Length` before reading the body; `add_sound_from_attachment` refuses audio over the sound library's 50 MB limit and points at the soundtrack tool; a paste of text with a picture of it (Office, Keynote) stays text; a draft whose file has gone drops its files with a note; "@Scene 2" typed out keeps filtering; the transcript stays pinned when the composer grows.
+- **Known limit:** undoing a turn does not remove a sound made from an attachment (sound files the user adds are not tracked by undo); remove it from `sounds/` by hand.

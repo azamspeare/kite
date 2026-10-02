@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
+import { attachmentKind, maxBytes } from '../src/shared/chatOptions';
 import type { ChatScope } from '../src/shared/types';
 import { scopeKey } from '../src/shared/types';
 import type { AgentRegistry } from './agents/registry';
@@ -16,11 +17,10 @@ import { snapCuts, type SnapGrid } from './musicContext';
 import type { ProjectStore } from './projects';
 import type { Renderer } from './render';
 import type { SeamService } from './seams';
-import type { SoundLibrary } from './sound/library';
+import { MAX_SOUND_BYTES, type SoundLibrary } from './sound/library';
 import { HttpError, assertId } from './util';
 
 const MAX_AUDIO_BYTES = 200 * 1024 * 1024;
-const MAX_SOUND_BYTES = 50 * 1024 * 1024;
 
 export interface ApiDeps {
   store: ProjectStore;
@@ -231,7 +231,21 @@ export function createApi({ store, hub, seams, renderer, agents, chats, diagnose
   // A file attached in the composer: kept in assets/, and named in the message that carries it.
   app.post('/projects/:id/attachments', async (c) => {
     const p = await store.get(c.req.param('id'));
-    const name = decodeURIComponent(c.req.header('x-filename') ?? '');
+    let name: string;
+    try {
+      name = decodeURIComponent(c.req.header('x-filename') ?? '');
+    } catch {
+      throw new HttpError(400, 'The file name could not be read');
+    }
+    // Refuse an oversized file before reading it; saveAttachment checks the real size again.
+    const kind = attachmentKind(name);
+    const declared = Number(c.req.header('content-length') ?? 0);
+    if (kind && declared > maxBytes(kind)) {
+      throw new HttpError(
+        413,
+        `${kind === 'image' ? 'Images' : 'Audio files'} are limited to ${maxBytes(kind) / (1024 * 1024)} MB`,
+      );
+    }
     const data = Buffer.from(await c.req.arrayBuffer());
     return c.json(await saveAttachment(p.dir, name, data), 201);
   });

@@ -18,7 +18,7 @@ import type { MusicEngine } from './music/engine';
 import type { MusicLibrary } from './music/library';
 import type { MusicJob, MusicService } from './music/service';
 import type { SfxEngine } from './sound/engine';
-import type { LibrarySound, SoundLibrary } from './sound/library';
+import { MAX_SOUND_BYTES, type LibrarySound, type SoundLibrary } from './sound/library';
 import type { SoundService } from './sound/service';
 import { PRESETS, PRESET_NAMES } from './sound/synth';
 import { formatSeconds, round } from './util';
@@ -630,6 +630,11 @@ export function createToolServer(services: ToolServices, scope: Scope): McpServe
     async (args) => {
       const p = await project(args.project);
       const { attachment, data } = await attachedAudio(p, args.file);
+      if (data.length > MAX_SOUND_BYTES) {
+        throw new ToolError(
+          `"${attachment.name}" is too large for a sound effect (over ${MAX_SOUND_BYTES / (1024 * 1024)} MB). If it is music, use set_soundtrack_from_attachment.`,
+        );
+      }
       const ext = path.extname(attachment.id);
       const name = (args.name?.trim() || attachmentStem(attachment.id)).replace(/[\\/:*?"<>|\x00-\x1f]/g, '').slice(0, 80);
       const sound = await soundLibrary.importFile(p.id, `${name || 'sound'}${ext}`, data);

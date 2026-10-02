@@ -11,9 +11,12 @@ export function slashQuery(text: string, tool: ChatToolId | null): string | null
   return tool === null && /^\/[a-zA-Z]*$/.test(text) ? text.slice(1).toLowerCase() : null;
 }
 
-/** A mention being typed just before the caret: "@", then letters (the start of "Scene"), then digits. */
+/**
+ * A mention being typed just before the caret: "@", then letters (the start of "Scene"), then digits,
+ * which may follow the word after one space, as the written mention has it ("@Scene 2").
+ */
 export function mentionQuery(beforeCaret: string): { word: string; digits: string } | null {
-  const match = /(?:^|\s)@([a-zA-Z]*)(\d*)$/.exec(beforeCaret);
+  const match = /(?:^|\s)@([a-zA-Z]*)(?:(?<=[a-zA-Z]) )?(\d*)$/.exec(beforeCaret);
   return match ? { word: match[1], digits: match[2] } : null;
 }
 

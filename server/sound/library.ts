@@ -32,6 +32,9 @@ interface SoundIndex {
   sounds: Record<string, { synth?: SynthRecipe; generated?: GeneratedMeta; createdAt: number }>;
 }
 
+/** The largest audio file that becomes a sound effect; longer audio is a soundtrack. */
+export const MAX_SOUND_BYTES = 50 * 1024 * 1024;
+
 export interface LibrarySound {
   name: string;
   source: SoundInfo['source'];
