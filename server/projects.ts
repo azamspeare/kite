@@ -90,6 +90,9 @@ export class ProjectStore {
           sceneCount: data.scenes.length,
           duration: round(data.scenes.reduce((s, x) => s + x.duration, 0)),
           updatedAt: stat.mtimeMs,
+          width: data.width,
+          height: data.height,
+          firstScene: data.scenes[0] ? { id: data.scenes[0].id, duration: data.scenes[0].duration } : null,
         });
       } catch {
         // not a project folder

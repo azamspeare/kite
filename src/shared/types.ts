@@ -118,6 +118,10 @@ export interface ProjectSummary {
   sceneCount: number;
   duration: number;
   updatedAt: number;
+  width: number;
+  height: number;
+  /** Drawn as the project's thumbnail on the projects page. */
+  firstScene: { id: string; duration: number } | null;
 }
 
 // ---------------------------------------------------------------------------
