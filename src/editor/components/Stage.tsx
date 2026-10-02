@@ -1,8 +1,12 @@
+import { ArrowPathIcon, ArrowRightIcon } from '@heroicons/react/16/solid';
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { previewAudio } from '../audio';
 import { currentScene, previewDuration, seek, useEditor } from '../store';
 import { FrameView, type FrameHandle } from './FrameView';
 import { Transport } from './Transport';
+import { ISLAND, ISLAND_HEADER } from './ui';
 
 /** Plays the soundtrack and the sound cues from the playhead, and advances time from the audio clock while playing. */
 function Playback() {
@@ -75,31 +79,43 @@ function Playback() {
   return null;
 }
 
+/** "Scene 2 of 5 · Anatomy", and in scene mode whether the preview loops. Lines up with the side panel's header. */
 function StageHeader() {
   const project = useEditor((s) => s.project)!;
   const scene = useEditor((s) => currentScene(s));
   const mode = useEditor((s) => s.mode);
   const loop = useEditor((s) => s.loop);
-  if (!scene) return <div className="stage-header">No scenes</div>;
   return (
-    <div className="stage-header">
-      <strong>
-        Scene {scene.index + 1} of {project.scenes.length}
-      </strong>
-      <span className="dim"> · {scene.name}</span>
-      {mode === 'scene' && (
-        <>
-          <span className="dim"> · </span>
-          <button
-            className="link-btn dim"
-            onClick={() => useEditor.setState({ loop: !loop })}
-            title="Toggle looping while previewing this scene"
-          >
-            {loop ? 'loops' : 'plays once'}
-          </button>
-        </>
+    <header className={cn(ISLAND_HEADER, 'justify-between')}>
+      {scene ? (
+        <p className="flex min-w-0 items-baseline gap-1.5 text-sm font-medium tabular-nums">
+          <span className="shrink-0">
+            Scene {scene.index + 1} <span className="text-muted-foreground">of {project.scenes.length}</span>
+          </span>
+          <span aria-hidden="true" className="text-muted-foreground">
+            ·
+          </span>
+          <span className="truncate text-muted-foreground" title={scene.name}>
+            {scene.name}
+          </span>
+        </p>
+      ) : (
+        <p className="text-sm font-medium text-muted-foreground">No scenes</p>
       )}
-    </div>
+      {scene && mode === 'scene' && (
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-pressed={loop}
+          onClick={() => useEditor.setState({ loop: !loop })}
+          title="Toggle looping while previewing this scene"
+          className="shrink-0 text-muted-foreground"
+        >
+          {loop ? <ArrowPathIcon data-icon="inline-start" /> : <ArrowRightIcon data-icon="inline-start" />}
+          {loop ? 'Loops' : 'Plays once'}
+        </Button>
+      )}
+    </header>
   );
 }
 
@@ -130,32 +146,46 @@ export function Stage() {
   };
 
   return (
-    <section className="stage-col">
+    <section aria-label="Stage" className={cn(ISLAND, 'flex min-h-0 min-w-0 flex-col overflow-hidden [grid-area:stage]')}>
       <StageHeader />
-      <div className="stage-area">
-        <div className="stage-frame" style={{ ['--ratio' as string]: `${project.width / project.height}` }}>
-          <FrameView
-            key={`${project.id}:scene`}
-            ref={sceneFrame}
-            projectId={project.id}
-            sceneId={sceneId}
-            mode="editor"
-            className={`frame ${mode === 'scene' ? '' : 'frame-hidden'}`}
-            onReady={renderCurrent}
-            onErrors={(e) => mode === 'scene' && setErrors(e)}
-          />
-          <FrameView
-            key={`${project.id}:whole`}
-            ref={wholeFrame}
-            projectId={project.id}
-            mode="editor"
-            className={`frame ${mode === 'whole' ? '' : 'frame-hidden'}`}
-            onReady={renderCurrent}
-            onErrors={(e) => mode === 'whole' && setErrors(e)}
-            onSounds={(soundCues) => useEditor.setState({ soundCues })}
-          />
+      {/* The frame is as large as fits, at the project's aspect ratio, on a quiet tray. */}
+      <div className="relative min-h-0 flex-1 bg-tray p-4">
+        <div className="grid size-full place-items-center [container-type:size]">
+          <div
+            className="relative aspect-(--ratio) w-[min(100cqw,calc(100cqh*var(--ratio)))] overflow-hidden rounded-lg bg-white shadow-card"
+            style={{ ['--ratio' as string]: `${project.width / project.height}` }}
+          >
+            <FrameView
+              key={`${project.id}:scene`}
+              ref={sceneFrame}
+              projectId={project.id}
+              sceneId={sceneId}
+              mode="editor"
+              className={cn('absolute inset-0 block size-full border-0', mode !== 'scene' && 'invisible')}
+              onReady={renderCurrent}
+              onErrors={(e) => mode === 'scene' && setErrors(e)}
+            />
+            <FrameView
+              key={`${project.id}:whole`}
+              ref={wholeFrame}
+              projectId={project.id}
+              mode="editor"
+              className={cn('absolute inset-0 block size-full border-0', mode !== 'whole' && 'invisible')}
+              onReady={renderCurrent}
+              onErrors={(e) => mode === 'whole' && setErrors(e)}
+              onSounds={(soundCues) => useEditor.setState({ soundCues })}
+            />
+          </div>
         </div>
-        {errors.length > 0 && <div className="stage-error">{errors[0].split('\n')[0]}</div>}
+        {errors.length > 0 && (
+          <p
+            role="alert"
+            title={errors[0]}
+            className="absolute bottom-6 left-6 max-w-[calc(100%-3rem)] truncate rounded-lg bg-destructive px-2.5 py-1.5 text-xs font-medium text-white shadow-island"
+          >
+            {errors[0].split('\n')[0]}
+          </p>
+        )}
       </div>
       <Transport />
       <Playback />

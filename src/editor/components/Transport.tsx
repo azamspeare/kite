@@ -1,5 +1,6 @@
-import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
+import { PauseIcon, PlayIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from '@heroicons/react/16/solid';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import type { ProjectState, ResolvedCue } from '../../shared/types';
 import { currentScene, previewDuration, setMode, setPlaying, useEditor, userSeek } from '../store';
 import { Segmented } from './ui';
@@ -86,7 +87,8 @@ function Scrubber(props: { duration: number; markers: Markers }) {
   return (
     <div
       ref={ref}
-      className="scrubber"
+      aria-label="Scrubber"
+      className="relative h-12 min-w-30 flex-1 cursor-pointer touch-none select-none"
       onPointerDown={(e) => {
         dragging.current = true;
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -104,39 +106,69 @@ function Scrubber(props: { duration: number; markers: Markers }) {
       onPointerLeave={() => setHover(null)}
     >
       {markers.wave && (
-        <svg className="scrub-wave" viewBox="0 0 240 100" preserveAspectRatio="none" aria-hidden>
+        <svg
+          className="pointer-events-none absolute inset-x-0 top-0.5 h-7.5 w-full fill-foreground/8"
+          viewBox="0 0 240 100"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
           <path d={markers.wave} />
         </svg>
       )}
-      <div className="scrub-markers" aria-hidden>
+      <div className="pointer-events-none absolute inset-x-0 top-1.25 h-2.75" aria-hidden>
         {showBeats &&
-          markers.beats.map((b, i) => <span key={i} className={`beat ${b.down ? 'down' : ''}`} style={{ left: pct(b.t) }} />)}
+          markers.beats.map((b, i) => (
+            <span
+              key={i}
+              className={
+                b.down ? 'absolute top-px h-2.25 w-px bg-foreground/45' : 'absolute top-1.25 h-1.25 w-px bg-foreground/20'
+              }
+              style={{ left: pct(b.t) }}
+            />
+          ))}
         {markers.phrases.map((p, i) => (
-          <span key={`p${i}`} className="phrase" style={{ left: pct(p) }} title={`Phrase at ${p.toFixed(2)}s`} />
+          <span
+            key={`p${i}`}
+            className="absolute -top-0.75 -ml-px h-3.25 w-0.5 rounded-xs bg-brand"
+            style={{ left: pct(p) }}
+            title={`Phrase at ${p.toFixed(2)}s`}
+          />
         ))}
       </div>
-      <div className="scrub-track">
-        <div className="scrub-fill" style={{ width: pct(time) }} />
+      <div className="absolute inset-x-0 top-4.25 h-1.75 rounded-full bg-foreground/10">
+        <div className="absolute inset-y-0 left-0 rounded-full bg-foreground/55" style={{ width: pct(time) }} />
         {markers.cuts.map((c) => (
-          <span key={c.t} className="cut" style={{ left: pct(c.t) }} title={`${c.name} starts at ${c.t.toFixed(2)}s`} />
+          <span
+            key={c.t}
+            className="absolute -inset-y-0.5 -ml-px w-0.5 bg-background"
+            style={{ left: pct(c.t) }}
+            title={`${c.name} starts at ${c.t.toFixed(2)}s`}
+          />
         ))}
       </div>
-      <div className="scrub-sounds" aria-hidden>
+      <div className="pointer-events-none absolute inset-x-0 top-6.5 h-1" aria-hidden>
         {markers.sounds.map((m, i) => (
-          <span key={i} style={{ left: pct(m.t) }} />
+          <span key={i} className="absolute top-0 -ml-0.5 size-1 rounded-full bg-brand" style={{ left: pct(m.t) }} />
         ))}
       </div>
-      <div className="scrub-handle" style={{ left: pct(time) }} />
+      <div
+        className="pointer-events-none absolute top-2.5 -ml-0.75 h-5.25 w-1.5 rounded-full bg-action ring-3 ring-action/20"
+        style={{ left: pct(time) }}
+      />
       {hover !== null && (
-        <div className="scrub-hover" style={{ left: pct(hover) }}>
-          <span>
+        <div className="pointer-events-none absolute -top-3.5 -translate-x-1/2" style={{ left: pct(hover) }}>
+          <span className="rounded-md bg-primary px-1.5 py-0.5 text-[11px] whitespace-nowrap text-primary-foreground tabular-nums">
             {hover.toFixed(2)}s{near.length > 0 && ` · ${near.slice(0, 3).join(', ')}${near.length > 3 ? '…' : ''}`}
           </span>
         </div>
       )}
-      <div className="scrub-ticks" aria-hidden>
-        {ticks.map((t) => (
-          <span key={t} style={{ left: pct(t) }}>
+      <div className="pointer-events-none absolute inset-x-0 top-8 h-3.5" aria-hidden>
+        {ticks.map((t, i) => (
+          <span
+            key={t}
+            className={`absolute text-[11px] whitespace-nowrap text-muted-foreground tabular-nums ${i === 0 ? '' : '-translate-x-1/2'}`}
+            style={{ left: pct(t) }}
+          >
             {formatTick(t, step)}
           </span>
         ))}
@@ -157,33 +189,42 @@ export function Transport() {
   const markers = useMarkers(project, mode === 'scene' ? (scene?.start ?? 0) : 0, duration, mode === 'whole', cues);
 
   return (
-    <div className="transport">
+    <div className="flex h-16 shrink-0 items-center gap-4 border-t px-4">
       <Segmented
+        label="What plays"
         value={mode}
         options={[
           ['scene', 'This scene'],
           ['whole', 'Whole video'],
         ]}
         onChange={setMode}
-        className="segmented-dark"
       />
       <button
-        className="play-btn"
+        type="button"
+        className="grid size-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-xs transition-[background-color,scale] duration-150 hover:bg-primary/85 active:scale-95"
         onClick={() => setPlaying(!playing)}
         aria-label={playing ? 'Pause' : 'Play'}
-        title="Play / pause (space)"
+        aria-keyshortcuts="Space"
+        title="Play or pause (Space)"
       >
-        {playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" style={{ marginLeft: 2 }} />}
+        {playing ? <PauseIcon className="size-4.5" /> : <PlayIcon className="ml-0.5 size-4.5" />}
       </button>
-      <div className="timecode">
-        <span>{time.toFixed(2)}</span>
-        <span className="dim"> / {duration.toFixed(2)}s</span>
-      </div>
+      <p className="min-w-27 shrink-0 font-mono text-sm whitespace-nowrap tabular-nums">
+        {time.toFixed(2)}
+        <span className="text-muted-foreground"> / {duration.toFixed(2)}s</span>
+      </p>
       <Scrubber duration={duration} markers={markers} />
       {(project.musicUrl || cues.length > 0) && (
-        <button className="icon-btn" onClick={() => useEditor.setState({ muted: !muted })} title={muted ? 'Unmute' : 'Mute'}>
-          {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-        </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-muted-foreground"
+          onClick={() => useEditor.setState({ muted: !muted })}
+          aria-label={muted ? 'Unmute' : 'Mute'}
+          title={muted ? 'Unmute' : 'Mute'}
+        >
+          {muted ? <SpeakerXMarkIcon /> : <SpeakerWaveIcon />}
+        </Button>
       )}
     </div>
   );

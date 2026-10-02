@@ -1,5 +1,6 @@
 import type { Server } from 'node:http';
 import path from 'node:path';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { createServer, type Plugin, type ViteDevServer } from 'vite';
 import { PROJECTS_DIR, ROOT } from './config';
@@ -32,14 +33,16 @@ export async function createVite(httpServer: Server): Promise<ViteDevServer> {
       watch: { ignored: ['**/.storyboard/**', '**/renders/**', '**/music/**', '**/sounds/**'] },
     },
     resolve: {
-      alias: { storyboard: path.join(ROOT, 'src/runtime/index.ts') },
+      // `@/` is the editor's own code (the shadcn components import it); scenes never use it.
+      alias: { storyboard: path.join(ROOT, 'src/runtime/index.ts'), '@': path.join(ROOT, 'src/editor') },
       dedupe: ['react', 'react-dom'],
     },
     optimizeDeps: {
       entries: ['index.html', 'frame.html'],
       include: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
     },
-    plugins: [react(), storyboardPlugin()],
+    // Tailwind only builds the editor's stylesheet (its sources are set in src/editor/styles.css), never scene frames.
+    plugins: [react(), tailwindcss(), storyboardPlugin()],
   });
 }
 

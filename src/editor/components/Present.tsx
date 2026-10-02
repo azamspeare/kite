@@ -1,5 +1,6 @@
-import { Pause, Play, RotateCcw, X } from 'lucide-react';
+import { ArrowPathIcon, PauseIcon, PlayIcon, XMarkIcon } from '@heroicons/react/16/solid';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { previewAudio } from '../audio';
 import { totalDuration, useEditor } from '../store';
 import { FrameView, type FrameHandle } from './FrameView';
@@ -112,41 +113,53 @@ export function Present() {
     hideTimer.current = setTimeout(() => setControls(false), 1800);
   };
 
+  const control =
+    'grid size-9 shrink-0 place-items-center rounded-full text-white/80 transition-colors duration-150 hover:bg-white/12 hover:text-white';
+
   return (
-    <div ref={root} className={`present ${controls ? '' : 'present-idle'}`} onMouseMove={poke}>
+    // Black, not a token: it is the letterbox around the video, part of the picture rather than the app's chrome.
+    <div ref={root} className={cn('fixed inset-0 z-100 bg-black', !controls && 'cursor-none')} onMouseMove={poke}>
       <FrameView
         ref={frame}
         projectId={project.id}
         mode="present"
-        className="present-frame"
+        className="absolute inset-0 size-full border-0"
         onReady={() => setReady(true)}
         onSounds={(soundCues) => useEditor.setState({ soundCues })}
       />
-      <div className="present-controls">
-        <button className="present-btn" onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pause' : 'Play'}>
-          {time >= total && !playing ? (
-            <RotateCcw size={18} />
-          ) : playing ? (
-            <Pause size={18} fill="currentColor" />
-          ) : (
-            <Play size={18} fill="currentColor" />
-          )}
-        </button>
-        <div
-          className="present-progress"
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            jump(((e.clientX - rect.left) / rect.width) * total);
-          }}
-        >
-          <div style={{ width: `${(time / Math.max(total, 0.001)) * 100}%` }} />
+      {/* The controls float as a dark island over the bottom of the video and fade out while the pointer rests. */}
+      <div
+        className={cn(
+          'absolute inset-x-0 bottom-6 flex justify-center px-6 transition-opacity duration-300',
+          !controls && 'pointer-events-none opacity-0',
+        )}
+      >
+        <div className="flex w-full max-w-3xl items-center gap-3 rounded-full bg-zinc-950/75 py-1.5 pr-2 pl-1.5 text-white shadow-island-stronger backdrop-blur-md">
+          <button type="button" className={control} onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pause' : 'Play'}>
+            {time >= total && !playing ? (
+              <ArrowPathIcon className="size-4.5" />
+            ) : playing ? (
+              <PauseIcon className="size-4.5" />
+            ) : (
+              <PlayIcon className="ml-0.5 size-4.5" />
+            )}
+          </button>
+          <div
+            className="h-1.5 flex-1 cursor-pointer overflow-hidden rounded-full bg-white/20"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              jump(((e.clientX - rect.left) / rect.width) * total);
+            }}
+          >
+            <div className="h-full rounded-full bg-white" style={{ width: `${(time / Math.max(total, 0.001)) * 100}%` }} />
+          </div>
+          <span className="font-mono text-xs text-white/80 tabular-nums">
+            {time.toFixed(1)} / {total.toFixed(1)}s
+          </span>
+          <button type="button" className={control} onClick={close} aria-label="Leave presenting" title="Leave (Esc)">
+            <XMarkIcon className="size-4.5" />
+          </button>
         </div>
-        <span className="present-time">
-          {time.toFixed(1)} / {total.toFixed(1)}s
-        </span>
-        <button className="present-btn" onClick={close} aria-label="Exit">
-          <X size={18} />
-        </button>
       </div>
     </div>
   );

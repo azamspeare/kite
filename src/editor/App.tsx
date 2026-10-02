@@ -1,14 +1,16 @@
-import { Clapperboard, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import { Filmstrip } from './components/Filmstrip';
-import { ArtDirectionModal, NewProjectModal } from './components/Modals';
-import { Present } from './components/Present';
-import { RenderView } from './components/RenderView';
 import { uploadMusicFile, uploadSoundFiles } from './components/AudioPanels';
+import { Filmstrip } from './components/Filmstrip';
+import { Footer } from './components/Footer';
+import { ArtDirectionModal, NewProjectModal } from './components/Modals';
+import { Navbar } from './components/Navbar';
+import { Present } from './components/Present';
+import { Projects } from './components/Projects';
+import { RenderView } from './components/RenderView';
 import { SidePanel } from './components/SidePanel';
 import { Stage } from './components/Stage';
-import { TopBar } from './components/TopBar';
+import { Toasts } from './components/Toasts';
 import { connectEvents } from './events';
 import {
   currentScene,
@@ -17,6 +19,7 @@ import {
   selectScene,
   setInfo,
   setPlaying,
+  setView,
   toastError,
   useEditor,
   userSeek,
@@ -25,40 +28,6 @@ import {
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
   return Boolean(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable));
-}
-
-function Toasts() {
-  const toasts = useEditor((s) => s.toasts);
-  return (
-    <div className="toasts">
-      {toasts.map((t) => (
-        <div key={t.id} className={`toast ${t.tone === 'error' ? 'toast-error' : ''}`}>
-          <span>{t.text}</span>
-          {t.action && <button onClick={t.action.run}>{t.action.label}</button>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Welcome() {
-  return (
-    <div className="welcome">
-      <div className="welcome-card card">
-        <span className="brand-mark big">
-          <Clapperboard size={22} />
-        </span>
-        <h1>Make a video by describing it</h1>
-        <p className="dim">
-          Every scene is a small piece of code that draws one frame at a time. Describe what you want, and your agent writes and
-          refines it while you watch the preview.
-        </p>
-        <button className="btn btn-primary btn-lg" onClick={() => useEditor.setState({ modal: 'new-project' })}>
-          <Plus size={16} /> New project
-        </button>
-      </div>
-    </div>
-  );
 }
 
 export function App() {
@@ -78,13 +47,33 @@ export function App() {
       const [info, projects] = await Promise.all([api.info(), loadProjects()]);
       setInfo(info);
       const [hashProject, hashScene] = decodeURIComponent(location.hash.replace(/^#\/?/, '')).split('/');
+      // `#/projects` asks for the projects page; otherwise the app opens the named or last project, as before.
+      if (hashProject === 'projects') return setView('projects');
       const candidates = [hashProject, localStorage.getItem('sb:project'), projects[0]?.id];
       const id = candidates.find((x) => x && projects.some((p) => p.id === x));
       if (id) await openProject(id, hashScene || null);
+      else setView('projects');
     })()
       .catch(toastError)
       .finally(() => setLoaded(true));
     return disconnect;
+  }, []);
+
+  useEffect(() => {
+    // Typing an address, or Back and Forward, can name another page: follow it.
+    const onHash = () => {
+      const [hashProject, hashScene] = decodeURIComponent(location.hash.replace(/^#\/?/, '')).split('/');
+      const s = useEditor.getState();
+      if (hashProject === 'projects') setView('projects');
+      else if (hashProject && hashProject !== s.project?.id && s.projects.some((p) => p.id === hashProject))
+        void openProject(hashProject, hashScene || null).catch(toastError);
+      else if (hashProject && hashProject === s.project?.id) {
+        if (s.view === 'projects') setView('scenes');
+        if (hashScene && hashScene !== s.sceneId) selectScene(hashScene);
+      }
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
   useEffect(() => {
@@ -125,16 +114,18 @@ export function App() {
   const hasFiles = (e: React.DragEvent) => e.dataTransfer.types.includes('Files');
   const zoneOf = (e: React.DragEvent) => ((e.target as HTMLElement).closest?.('[data-drop="sounds"]') ? 'sounds' : 'music');
 
+  const showProjects = loaded && (view === 'projects' || !project);
+
   return (
     <div
-      className="app"
+      className="relative isolate flex h-svh w-full flex-col overflow-hidden bg-muted"
       onDragEnter={(e) => {
-        if (!hasFiles(e) || !project) return;
+        if (!hasFiles(e) || !project || view === 'projects') return;
         dragDepth.current++;
         setDropping(true);
       }}
       onDragOver={(e) => {
-        if (!hasFiles(e) || !project) return;
+        if (!hasFiles(e) || !project || view === 'projects') return;
         e.preventDefault();
         const zone = zoneOf(e);
         if (zone !== dropZone) setDropZone(zone);
@@ -145,7 +136,7 @@ export function App() {
         if (dragDepth.current === 0) setDropping(false);
       }}
       onDrop={(e) => {
-        if (!hasFiles(e) || !project) return;
+        if (!hasFiles(e) || !project || view === 'projects') return;
         e.preventDefault();
         dragDepth.current = 0;
         setDropping(false);
@@ -154,25 +145,31 @@ export function App() {
         else if (files[0]) void uploadMusicFile(files[0]);
       }}
     >
-      <TopBar />
-      {project ? (
+      <Navbar />
+      {project && (
         <>
-          <div className="main" hidden={view !== 'scenes'}>
+          {/* Hidden, not removed, outside the Scenes view, so the stage's frames stay loaded. */}
+          <div
+            hidden={view !== 'scenes'}
+            className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_clamp(25rem,32vw,29rem)_auto] grid-rows-[minmax(0,1fr)_auto] gap-3 px-3 pt-px pb-3 [grid-template-areas:'stage_side_rail'_'filmstrip_side_rail'] [&[hidden]]:hidden"
+          >
             <Stage />
             {view === 'scenes' && <Filmstrip />}
             <SidePanel />
           </div>
           {view === 'render' && <RenderView />}
         </>
-      ) : (
-        loaded && <Welcome />
       )}
+      {showProjects && <Projects />}
+      <Footer />
       {modal === 'art' && project && <ArtDirectionModal />}
       {modal === 'new-project' && <NewProjectModal />}
       {presenting && project && <Present />}
       {dropping && (
-        <div className="drop-overlay">
-          {dropZone === 'sounds' ? 'Drop to add sound effects' : 'Drop an audio file to use it as the soundtrack'}
+        <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center bg-brand-8/70 p-3 backdrop-blur-[2px]">
+          <div className="grid size-full place-items-center rounded-3xl border-2 border-dashed border-action text-base font-medium text-action-text">
+            {dropZone === 'sounds' ? 'Drop to add sound effects' : 'Drop an audio file to use it as the soundtrack'}
+          </div>
         </div>
       )}
       <Toasts />

@@ -1,16 +1,19 @@
 import {
-  AudioLines,
-  CopyPlus,
-  ExternalLink,
-  FolderOpen,
-  Loader2,
-  MessageSquare,
-  Music,
-  ScanLine,
-  Trash2,
-  Undo2,
-} from 'lucide-react';
+  ArrowTopRightOnSquareIcon,
+  ArrowUturnLeftIcon,
+  DocumentDuplicateIcon,
+  FolderOpenIcon,
+  TrashIcon,
+  ViewfinderCircleIcon,
+} from '@heroicons/react/16/solid';
+// Heroicons has no chat-bubble, note or waveform of this kind, so the rail's icons come from Hugeicons.
+import { AiChat02Icon, AudioWave01Icon, MusicNote03Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { FILE_MANAGER, revealFile } from '@/lib/files';
+import { cn } from '@/lib/utils';
 import type { SceneState } from '../../shared/types';
 import { api } from '../api';
 import {
@@ -26,8 +29,10 @@ import {
 } from '../store';
 import { SoundsPanel, SoundtrackPanel, useSoundProblems } from './AudioPanels';
 import { Chat } from './Chat';
-import { FILE_MANAGER, revealFile } from './TopBar';
-import { Segmented } from './ui';
+import { ISLAND, ISLAND_HEADER, Segmented } from './ui';
+
+/** The row of tools under a panel's header. */
+const TOOLBAR = 'flex h-11 shrink-0 items-center gap-1 border-b px-3';
 
 function InlineInput(props: { initial: string; onDone: (value: string | null) => void; numeric?: boolean; className?: string }) {
   const done = useRef(false);
@@ -38,7 +43,10 @@ function InlineInput(props: { initial: string; onDone: (value: string | null) =>
   };
   return (
     <input
-      className={`inline-input ${props.className ?? ''}`}
+      className={cn(
+        'min-w-0 rounded-md border border-ring bg-background px-1.5 py-0.5 ring-3 ring-ring/20 outline-none',
+        props.className,
+      )}
       defaultValue={props.initial}
       autoFocus
       inputMode={props.numeric ? 'decimal' : undefined}
@@ -52,6 +60,7 @@ function InlineInput(props: { initial: string; onDone: (value: string | null) =>
   );
 }
 
+/** The scene's name (double-click to rename) and its duration (click to change). */
 function SceneTitle({ scene }: { scene: SceneState }) {
   const project = useEditor((s) => s.project)!;
   const [editing, setEditing] = useState<'name' | 'duration' | null>(null);
@@ -64,26 +73,30 @@ function SceneTitle({ scene }: { scene: SceneState }) {
     }
   };
   return (
-    <div className="side-title">
+    <div className="flex min-w-0 flex-1 items-center gap-1">
       {editing === 'name' ? (
         <InlineInput
           initial={scene.name}
-          className="title-input"
+          className="flex-1 text-sm font-medium"
           onDone={(v) => {
             setEditing(null);
             if (v && v !== scene.name) void save({ name: v });
           }}
         />
       ) : (
-        <h1 onDoubleClick={() => setEditing('name')} title="Double-click to rename">
+        <h2
+          onDoubleClick={() => setEditing('name')}
+          title={`${scene.name} (double-click to rename)`}
+          className="min-w-0 flex-1 cursor-default truncate text-sm font-medium"
+        >
           {scene.name}
-        </h1>
+        </h2>
       )}
       {editing === 'duration' ? (
         <InlineInput
           numeric
           initial={scene.duration.toFixed(2)}
-          className="duration-input"
+          className="w-20 text-right font-mono text-sm tabular-nums"
           onDone={(v) => {
             setEditing(null);
             const seconds = Number(v?.replace(/s$/, ''));
@@ -91,9 +104,15 @@ function SceneTitle({ scene }: { scene: SceneState }) {
           }}
         />
       ) : (
-        <button className="duration-btn" onClick={() => setEditing('duration')} title="Click to change the duration">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0 font-mono text-muted-foreground tabular-nums"
+          onClick={() => setEditing('duration')}
+          title="Click to change the duration"
+        >
           {scene.duration.toFixed(2)}s
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -118,6 +137,31 @@ function useUndo(scopeKey: string) {
   return { canUndo, undo, clear, hasMessages: Boolean(chat?.messages.length) };
 }
 
+/** An icon-only tool in a panel's toolbar; its label is the tooltip and what a screen reader says. */
+function ToolButton(props: { label: string; onClick: () => void; disabled?: boolean; danger?: boolean; children: ReactNode }) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label={props.label}
+      title={props.label}
+      onClick={props.onClick}
+      disabled={props.disabled}
+      className={cn('text-muted-foreground', props.danger && 'hover:bg-destructive/10 hover:text-destructive-foreground')}
+    >
+      {props.children}
+    </Button>
+  );
+}
+
+function ClearChat({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
+  return (
+    <Button variant="ghost" size="sm" onClick={onClick} disabled={disabled} className="ml-auto text-muted-foreground">
+      Clear chat
+    </Button>
+  );
+}
+
 function SceneToolbar({ scene }: { scene: SceneState }) {
   const project = useEditor((s) => s.project)!;
   const { canUndo, undo, clear, hasMessages } = useUndo(scene.id);
@@ -140,30 +184,27 @@ function SceneToolbar({ scene }: { scene: SceneState }) {
     }
   };
   return (
-    <div className="side-toolbar">
-      <button className="btn btn-sm" disabled={!canUndo} onClick={undo} title="Undo the agent’s last change to this scene">
-        <Undo2 size={15} /> Undo
-      </button>
-      <button
-        className="icon-btn"
-        title="Open this scene in a new tab"
+    <div className={TOOLBAR}>
+      <Button variant="outline" size="sm" disabled={!canUndo} onClick={undo} title="Undo the agent’s last change to this scene">
+        <ArrowUturnLeftIcon data-icon="inline-start" />
+        Undo
+      </Button>
+      <ToolButton
+        label="Open this scene in a new tab"
         onClick={() => window.open(`/frame.html?project=${project.id}&scene=${scene.id}&mode=editor`, '_blank')}
       >
-        <ExternalLink size={16} />
-      </button>
-      <button className="icon-btn" title={`Show the scene file in ${FILE_MANAGER}`} onClick={() => revealFile(scene.file)}>
-        <FolderOpen size={16} />
-      </button>
-      <button className="icon-btn" title="Duplicate scene" onClick={duplicate}>
-        <CopyPlus size={16} />
-      </button>
-      <button className="icon-btn icon-danger" title="Delete scene" onClick={remove} disabled={project.scenes.length <= 1}>
-        <Trash2 size={16} />
-      </button>
-      <div className="spacer" />
-      <button className="btn-text" onClick={clear} disabled={!hasMessages}>
-        Clear chat
-      </button>
+        <ArrowTopRightOnSquareIcon />
+      </ToolButton>
+      <ToolButton label={`Show the scene file in ${FILE_MANAGER}`} onClick={() => revealFile(scene.file)}>
+        <FolderOpenIcon />
+      </ToolButton>
+      <ToolButton label="Duplicate scene" onClick={duplicate}>
+        <DocumentDuplicateIcon />
+      </ToolButton>
+      <ToolButton label="Delete scene" onClick={remove} disabled={project.scenes.length <= 1} danger>
+        <TrashIcon />
+      </ToolButton>
+      <ClearChat onClick={clear} disabled={!hasMessages} />
     </div>
   );
 }
@@ -189,24 +230,19 @@ function ProjectToolbar() {
     }
   };
   return (
-    <div className="side-toolbar">
-      <button className="btn btn-sm" disabled={!canUndo} onClick={undo} title="Undo the project chat’s last change">
-        <Undo2 size={15} /> Undo
-      </button>
-      <button className="btn btn-sm" onClick={checkSeams} disabled={checking} title="Pixel-compare every cut">
-        {checking ? <Loader2 size={15} className="spin" /> : <ScanLine size={15} />} Check seams
-      </button>
-      <button
-        className="icon-btn"
-        title={`Show the project folder in ${FILE_MANAGER}`}
-        onClick={() => revealFile(`${project.dir}/project.json`)}
-      >
-        <FolderOpen size={16} />
-      </button>
-      <div className="spacer" />
-      <button className="btn-text" onClick={clear} disabled={!hasMessages}>
-        Clear chat
-      </button>
+    <div className={TOOLBAR}>
+      <Button variant="outline" size="sm" disabled={!canUndo} onClick={undo} title="Undo the project chat’s last change">
+        <ArrowUturnLeftIcon data-icon="inline-start" />
+        Undo
+      </Button>
+      <Button variant="outline" size="sm" onClick={checkSeams} disabled={checking} title="Pixel-compare every cut">
+        {checking ? <Spinner data-icon="inline-start" /> : <ViewfinderCircleIcon data-icon="inline-start" />}
+        Check seams
+      </Button>
+      <ToolButton label={`Show the project folder in ${FILE_MANAGER}`} onClick={() => revealFile(`${project.dir}/project.json`)}>
+        <FolderOpenIcon />
+      </ToolButton>
+      <ClearChat onClick={clear} disabled={!hasMessages} />
     </div>
   );
 }
@@ -230,55 +266,73 @@ function Rail() {
   }, [rail]);
   useEffect(() => setUnread(false), [project.id]);
 
-  const item = (id: RailItem, name: string, status: string | null, icon: ReactNode, badge: ReactNode = null) => {
+  const item = (id: RailItem, name: string, status: string | null, icon: IconSvgElement, badge: ReactNode = null) => {
     const label = status ? `${name} · ${status}` : name;
+    const active = rail === id;
     return (
       <button
+        type="button"
         role="tab"
-        aria-selected={rail === id}
+        aria-selected={active}
         aria-label={label}
         title={label}
-        className={`rail-btn ${rail === id ? 'active' : ''}`}
+        className={cn(
+          'relative grid size-9 place-items-center rounded-xl transition-colors duration-150',
+          active ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground',
+        )}
         data-drop={id === 'sounds' ? 'sounds' : undefined}
         onClick={() => useEditor.setState({ rail: id })}
       >
-        {icon}
+        <HugeiconsIcon icon={icon} strokeWidth={1.5} className="size-5" />
         {badge}
       </button>
     );
   };
   const working = (
-    <span className="rail-badge rail-working">
-      <Loader2 size={11} className="spin" />
+    <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-background text-action-text ring-2 ring-background">
+      <Spinner className="size-3" />
     </span>
+  );
+  const dot = (tone: 'brand' | 'error') => (
+    <span
+      className={cn(
+        'absolute top-1 right-1 size-2 rounded-full ring-2 ring-background',
+        tone === 'brand' ? 'bg-action' : 'bg-destructive',
+      )}
+    />
   );
 
   return (
-    <nav className="rail" role="tablist" aria-orientation="vertical" aria-label="Panels">
+    <nav
+      role="tablist"
+      aria-orientation="vertical"
+      aria-label="Panels"
+      className={cn(ISLAND, 'flex w-12 flex-col items-center gap-1 self-start p-1.5 [grid-area:rail]')}
+    >
       {item(
         'chat',
         'Chat',
         busy ? 'The agent is working' : unread ? 'The agent replied' : null,
-        <MessageSquare size={18} />,
-        busy ? working : unread ? <span className="rail-badge rail-dot" /> : null,
+        AiChat02Icon,
+        busy ? working : unread ? dot('brand') : null,
       )}
       {item(
         'soundtrack',
         'Soundtrack',
         musicStatus === 'analyzing' ? 'analyzing' : musicStatus === 'error' ? 'analysis failed' : null,
-        <Music size={18} />,
-        musicStatus === 'analyzing' ? (
-          working
-        ) : musicStatus === 'error' ? (
-          <span className="rail-badge rail-dot rail-error" />
-        ) : null,
+        MusicNote03Icon,
+        musicStatus === 'analyzing' ? working : musicStatus === 'error' ? dot('error') : null,
       )}
       {item(
         'sounds',
         'Sound effects',
         problems ? `${problems} problem${problems === 1 ? '' : 's'}` : null,
-        <AudioLines size={18} />,
-        problems ? <span className="rail-badge rail-count">{problems}</span> : null,
+        AudioWave01Icon,
+        problems ? (
+          <span className="absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full bg-warning px-1 text-[10px] font-semibold text-amber-950 tabular-nums ring-2 ring-background">
+            {problems}
+          </span>
+        ) : null,
       )}
     </nav>
   );
@@ -291,9 +345,10 @@ function ChatPanel() {
   const scopeKey = panel === 'scene' ? scene?.id : '_project';
   return (
     <>
-      <div className="side-head">
+      <header className={ISLAND_HEADER}>
         <Segmented
           size="sm"
+          label="Which chat"
           value={panel}
           options={[
             ['scene', 'Scene'],
@@ -304,12 +359,16 @@ function ChatPanel() {
         {panel === 'scene' && scene ? (
           <SceneTitle scene={scene} />
         ) : (
-          <div className="side-title">
-            <h1>{project.name}</h1>
-            <span className="duration-btn static">{totalDuration(project).toFixed(2)}s</span>
+          <div className="flex min-w-0 flex-1 items-center gap-1">
+            <h2 title={project.name} className="min-w-0 flex-1 truncate text-sm font-medium">
+              {project.name}
+            </h2>
+            <span className="shrink-0 px-2.5 font-mono text-[0.8rem] text-muted-foreground tabular-nums">
+              {totalDuration(project).toFixed(2)}s
+            </span>
           </div>
         )}
-      </div>
+      </header>
       {panel === 'scene' && scene ? <SceneToolbar scene={scene} /> : <ProjectToolbar />}
       {scopeKey && <Chat key={`${project.id}/${scopeKey}`} scopeKey={scopeKey} />}
     </>
@@ -320,7 +379,11 @@ export function SidePanel() {
   const rail = useEditor((s) => s.rail);
   return (
     <>
-      <aside className="side" data-drop={rail === 'sounds' ? 'sounds' : undefined}>
+      <aside
+        aria-label="Side panel"
+        className={cn(ISLAND, 'flex min-h-0 min-w-0 flex-col overflow-hidden [grid-area:side]')}
+        data-drop={rail === 'sounds' ? 'sounds' : undefined}
+      >
         {rail === 'soundtrack' ? <SoundtrackPanel /> : rail === 'sounds' ? <SoundsPanel /> : <ChatPanel />}
       </aside>
       <Rail />

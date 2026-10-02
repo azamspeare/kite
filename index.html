@@ -3,14 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Storyboard</title>
-    <script>
-      // Apply the saved preference before the stylesheet paints the editor.
-      try {
-        const theme = localStorage.getItem('sb:theme');
-        document.documentElement.dataset.theme = theme === 'light' || theme === 'dark' ? theme : 'system';
-      } catch {}
-    </script>
+    <title>Kite</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/src/editor/styles.css" />
   </head>
   <body>

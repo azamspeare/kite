@@ -11,9 +11,9 @@ import type {
   SoundReport,
 } from '../shared/types';
 import { api, type Info } from './api';
-import { readTheme, type Theme } from './theme';
 
-export type View = 'scenes' | 'render';
+/** The projects page, or one of the open project's two views. */
+export type View = 'projects' | 'scenes' | 'render';
 export type PreviewMode = 'scene' | 'whole';
 /** What fills the right column, picked in the rail beside it. */
 export type RailItem = 'chat' | 'soundtrack' | 'sounds';
@@ -32,7 +32,6 @@ export interface Toast {
 }
 
 interface EditorState {
-  theme: Theme;
   info: Info | null;
   projects: ProjectSummary[];
   project: ProjectState | null;
@@ -68,7 +67,6 @@ interface EditorState {
 const savedProvider = localStorage.getItem('sb:provider') ?? '';
 
 export const useEditor = create<EditorState>(() => ({
-  theme: readTheme(),
   info: null,
   projects: [],
   project: null,
@@ -98,19 +96,6 @@ export const useEditor = create<EditorState>(() => ({
 
 const set = useEditor.setState;
 const get = useEditor.getState;
-
-// ---------------------------------------------------------------------------
-// Appearance
-
-export function setTheme(theme: Theme) {
-  document.documentElement.dataset.theme = theme;
-  set({ theme });
-  try {
-    localStorage.setItem('sb:theme', theme);
-  } catch {
-    // The preference still applies for this session when storage is unavailable.
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Derived helpers
@@ -160,12 +145,20 @@ export function toastError(e: unknown) {
 // ---------------------------------------------------------------------------
 // Navigation
 
+/** The address names the page: `#/projects`, or `#/<project>/<scene>` for the editor. */
 function writeHash() {
   const s = get();
-  if (!s.project) return;
-  const parts = [s.project.id, s.sceneId ?? ''].filter(Boolean);
-  const next = `#/${parts.join('/')}`;
+  let next: string;
+  if (s.view === 'projects') next = '#/projects';
+  else if (s.project) next = `#/${[s.project.id, s.sceneId ?? ''].filter(Boolean).join('/')}`;
+  else return;
   if (location.hash !== next) history.replaceState(null, '', next);
+}
+
+/** Shows the projects page, or the open project in one of its views. */
+export function setView(view: View) {
+  set({ view, ...(view === 'projects' ? { playing: false } : {}) });
+  writeHash();
 }
 
 export async function loadProjects() {
@@ -179,6 +172,8 @@ export async function openProject(id: string, sceneId?: string | null) {
   const scene = project.scenes.find((x) => x.id === sceneId) ?? project.scenes[0] ?? null;
   set({
     project,
+    // Opening a project from the projects page shows it.
+    view: get().view === 'projects' ? 'scenes' : get().view,
     sceneId: scene?.id ?? null,
     time: 0,
     playing: false,
@@ -210,7 +205,15 @@ export async function refreshProject() {
   if (get().time > max) set({ time: max });
   set({
     projects: get().projects.map((x) =>
-      x.id === id ? { ...x, name: project.name, sceneCount: project.scenes.length, duration: totalDuration(project) } : x,
+      x.id === id
+        ? {
+            ...x,
+            name: project.name,
+            sceneCount: project.scenes.length,
+            duration: totalDuration(project),
+            firstScene: project.scenes[0] ? { id: project.scenes[0].id, duration: project.scenes[0].duration } : null,
+          }
+        : x,
     ),
   });
   writeHash();

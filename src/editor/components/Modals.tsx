@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { api } from '../api';
 import { loadProjects, openProject, refreshProject, toast, toastError, useEditor } from '../store';
-import { Modal } from './ui';
+import { Modal, Picker } from './ui';
 
 const close = () => useEditor.setState({ modal: null });
 
@@ -14,7 +17,7 @@ export function ArtDirectionModal() {
     try {
       await api.setArtDirection(project.id, text);
       await refreshProject();
-      toast('Art direction saved — the agent reads it before every edit');
+      toast('Art direction saved. The agent reads it before every edit.');
       close();
     } catch (e) {
       toastError(e);
@@ -29,23 +32,28 @@ export function ArtDirectionModal() {
       wide
       footer={
         <>
-          <span className="hint">Saved as art-direction.md in the project folder.</span>
-          <div className="spacer" />
-          <button className="btn" onClick={close}>
+          <span className="mr-auto text-xs text-muted-foreground">
+            Saved as <code className="font-mono">art-direction.md</code> in the project folder.
+          </span>
+          <Button variant="outline" onClick={close}>
             Cancel
-          </button>
-          <button className="btn btn-primary" onClick={save} disabled={saving}>
-            Save
-          </button>
+          </Button>
+          <Button catalyst onClick={save} disabled={saving}>
+            Save art direction
+          </Button>
         </>
       }
     >
-      <p className="dim modal-intro">
+      <p className="mb-3 text-sm/6 text-muted-foreground">
         The look every scene shares: palette, type scale, motion principles, layout rules. The agent reads this before every edit,
         in every scene.
       </p>
-      <textarea
-        className="art-editor"
+      <label htmlFor="art-direction" className="sr-only">
+        Art direction
+      </label>
+      <Textarea
+        id="art-direction"
+        className="h-[52svh] resize-y font-mono text-[13px]/6 [field-sizing:fixed] md:text-[13px]/6"
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
@@ -59,10 +67,16 @@ export function ArtDirectionModal() {
 }
 
 const FORMATS = [
-  { label: 'Landscape 16:9 — 1920×1080', width: 1920, height: 1080 },
-  { label: 'Square 1:1 — 1080×1080', width: 1080, height: 1080 },
-  { label: 'Portrait 4:5 — 1080×1350', width: 1080, height: 1350 },
-  { label: 'Vertical 9:16 — 1080×1920', width: 1080, height: 1920 },
+  { label: 'Landscape 16:9 · 1920×1080', width: 1920, height: 1080 },
+  { label: 'Square 1:1 · 1080×1080', width: 1080, height: 1080 },
+  { label: 'Portrait 4:5 · 1080×1350', width: 1080, height: 1350 },
+  { label: 'Vertical 9:16 · 1080×1920', width: 1080, height: 1920 },
+];
+
+const FRAME_RATES = [
+  { value: 60, label: '60 fps · smoothest UI motion' },
+  { value: 30, label: '30 fps' },
+  { value: 24, label: '24 fps · filmic' },
 ];
 
 export function NewProjectModal() {
@@ -91,44 +105,47 @@ export function NewProjectModal() {
       onClose={close}
       footer={
         <>
-          <button className="btn" onClick={close}>
+          <Button variant="outline" onClick={close}>
             Cancel
-          </button>
-          <button className="btn btn-primary" onClick={create} disabled={busy}>
+          </Button>
+          <Button catalyst onClick={create} disabled={busy}>
             Create project
-          </button>
+          </Button>
         </>
       }
     >
-      <div className="form">
-        <label>
-          Name
-          <input
+      <div className="flex flex-col gap-4 pb-1">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="project-name" className="text-sm font-medium">
+            Name
+          </label>
+          <Input
+            id="project-name"
             autoFocus
             value={name}
             placeholder="Product teaser"
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && void create()}
           />
-        </label>
-        <label>
-          Format
-          <select value={format} onChange={(e) => setFormat(Number(e.target.value))}>
-            {FORMATS.map((f, i) => (
-              <option key={f.label} value={i}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Frame rate
-          <select value={fps} onChange={(e) => setFps(Number(e.target.value))}>
-            <option value={60}>60 fps — smoothest UI motion</option>
-            <option value={30}>30 fps</option>
-            <option value={24}>24 fps — filmic</option>
-          </select>
-        </label>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="project-format" className="text-sm font-medium">
+            Format
+          </label>
+          <Picker
+            id="project-format"
+            label="Format"
+            value={format}
+            options={FORMATS.map((f, i) => ({ value: i, label: f.label }))}
+            onChange={setFormat}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="project-fps" className="text-sm font-medium">
+            Frame rate
+          </label>
+          <Picker id="project-fps" label="Frame rate" value={fps} options={FRAME_RATES} onChange={setFps} />
+        </div>
       </div>
     </Modal>
   );
